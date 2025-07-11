@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Poppins:wght@600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.fade-mask {
+  mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+}
+
+@layer base {
+  body {
+    @apply bg-fungal-dark text-muted-white font-body;
+  }
+
+  a {
+    @apply no-underline;
+  }
+
+  /* Styling for MDX content */
+  .prose {
+    @apply text-muted-white/80;
+  }
+  .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+    @apply font-heading font-semibold text-muted-white;
+  }
+  .prose h1 {
+    @apply text-4xl md:text-5xl mb-6 text-glow-mint;
+  }
+  .prose h2 {
+    @apply text-3xl md:text-4xl mt-12 mb-6 border-b border-white/10 pb-3;
+  }
+  .prose h3 {
+    @apply text-2xl md:text-3xl mt-8 mb-4 text-glow-mint/90;
+  }
+  .prose p {
+    @apply mb-6 leading-relaxed;
+  }
+  .prose a {
+    @apply text-neural-violet;
+  }
+  .prose ul {
+    @apply list-disc list-inside mb-6 pl-4;
+  }
+  .prose li {
+    @apply mb-2;
+  }
+  .prose hr {
+    @apply border-t border-white/10 my-12;
+  }
+  .prose table {
+    @apply w-full my-8 border-collapse;
+  }
+  .prose thead {
+    @apply bg-white/5;
+  }
+  .prose th, .prose td {
+    @apply border border-white/10 p-4 text-left;
+  }
+  .prose th {
+    @apply font-semibold;
+  }
+  .prose code {
+    @apply bg-white/10 text-glow-mint p-1 rounded-md text-sm font-mono;
+  }
+  .prose strong {
+    @apply text-glow-mint/90 font-semibold;
+  }
+}

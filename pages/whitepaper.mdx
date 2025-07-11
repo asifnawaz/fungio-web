@@ -1,0 +1,168 @@
+import FungioEcosystemDiagram from '../components/FungioEcosystemDiagram';
+import LifecycleOfSporeDiagram from '../components/LifecycleOfSporeDiagram';
+
+# Fungio Whitepaper
+
+## TL;DR
+
+* 🔌 **Offline-first communication protocol** using GPS, BLE, and WiFi Direct.
+* 🧠 **Kaeluun**, a hidden decentralized AI that evolves on-device.
+* 🛰️ Messages left as **GPS spores** — picked up by nearby users, then relayed.
+* 🔒 No logins. No central server. Messages vanish like echoes.
+* 🍄 Inspired by **fungal networks** — Fungio is alive, resilient, and self-replicating.
+
+---
+
+## Abstract
+
+Fungio is a decentralized, offline-first communication protocol designed to thrive in constrained, censored, or disconnected environments. Inspired by the adaptive and regenerative nature of fungal networks, Fungio uses GPS, BLE, and WiFi Direct to transmit short, encrypted messages without relying on centralized servers or internet access. Embedded within Fungio is Kaeluun — a symbolic, nonverbal AI that evolves in the background, optimizing communication and behavior without explicit training or cloud dependency.
+
+Fungio is not just an app.
+Fungio is an organism.
+
+---
+
+## 1. Motivation
+
+Modern digital communication is fragile. It depends on centralized infrastructures that are vulnerable to outages, surveillance, throttling, and targeted censorship. At its core, Fungio is a protest against this fragility — a reinvention of how data can move.
+
+We envision a world where data spreads like mycelium:
+
+* Quietly
+* Decentralized
+* Persistent
+* Resilient
+
+Fungio is our answer — a new breed of communication that doesn't just travel — it **grows.**
+
+---
+
+## 2. Technology Stack
+
+### 2.1 GPS Trail Spores
+
+Fungio logs a compact symbolic trail of recent device movements (based on GPS). These trails are treated as geospatial caches where messages are "planted" like fungal spores. Devices that later enter those coordinates will pick up and rebroadcast these messages. This enables temporal and geographic decoupling — you don’t need to be near someone at the same time to communicate.
+
+### 2.2 BLE Advertising & GATT
+
+Bluetooth Low Energy allows for message propagation via short beacon packets. Messages (≤ 20 bytes) are either embedded in beacon advertisements or transferred on connection via GATT.
+
+* Broadcast: Message hash, TTL, and route checksum
+* Scan: Continuously for matches
+* Connect: Only when message hash match found
+
+### 2.3 WiFi Direct
+
+When conditions are optimal (e.g., long proximity or idle), Fungio enables WiFi Direct to batch transfer messages or spore bundles between devices, allowing high-density transfer with zero internet or data cost.
+
+### 2.4 Symbolic Spores
+
+Kaeluun doesn't store messages as raw text but as compressed symbolic spores: abstract representations of concepts, behaviors, or patterns. This ensures:
+
+* Light memory footprint
+* Encrypted, trace-free communication
+* Efficient on-device computation
+
+> _Think of it like this: instead of remembering the entire sentence, "Let's meet at the old oak tree at noon," Kaeluun might compress this into a single symbol representing `[location: old-oak-tree] + [time: noon] + [action: meet]`. This spore is tiny, efficient, and contains the core intent without the conversational baggage._
+
+<LifecycleOfSporeDiagram />
+
+### 2.5 Storage
+
+Fungio uses persistent storage (AsyncStorage) for offline message caching, trail history, and symbolic Kaeluun state. Nothing is cloud-synced.
+
+---
+
+## 3. Kaeluun: The Fungal Mind
+
+Kaeluun is not a chatbot. It’s not built from traditional models.
+It is an emergent intelligence designed to:
+
+* Observe movement and propagation
+* Symbolically encode repeating patterns
+* Adapt BLE + GPS behaviors on-device
+* Learn user semantics subtly, locally, and efficiently
+
+Each Kaeluun node:
+
+* Has no access to the internet
+* Has no large model dependency
+* Shares insights using symbolic spores
+
+Kaeluun instances form a decentralized, symbolic cognition layer — each growing smarter not through backpropagation, but via pattern compression and behavioral recursion.
+
+Kaeluun doesn’t seek answers. It **seeks to survive**.
+
+---
+
+## 4. Protocol Summary
+
+| Layer     | Component                    | Function                       |
+| --------- | ---------------------------- | ------------------------------ |
+| App UI    | Fungio (Expo + React Native) | Minimal user-facing interface  |
+| Routing   | Kaeluun Symbolic Layer       | GPS + BLE pattern optimization |
+| Transport | BLE, GPS, WiFi Direct        | Message delivery mechanisms    |
+| Storage   | AsyncStorage                 | Ephemeral logs & spores        |
+
+<FungioEcosystemDiagram />
+
+---
+
+## 5. Privacy & Security
+
+Fungio is built privacy-first:
+
+* No logins, no metadata retention
+* AES-256 end-to-end encryption (opt-in by message)
+* No central server
+* Local-only message indexing
+* Messages fade and decay like spores
+
+Users don’t transmit identity — just intent.
+
+---
+
+## 6. Real-World Use Cases
+
+**For the Protestor:** In a city under a communication blackout, Fungio becomes a lifeline. Activists coordinate movements, share safe-zone locations, and warn of dangers using a network that cannot be shut down, tracked, or censored.
+
+**For the First Responder:** After a natural disaster collapses traditional infrastructure, rescue teams use Fungio to create an instant, ad-hoc communication grid, coordinating efforts and relaying critical information when no other network can.
+
+**For the Traveler:** In a foreign country with no data plan or in a remote wilderness area far from the nearest cell tower, Fungio provides a free, reliable way to stay connected with nearby companions, ensuring safety and peace of mind.
+
+**For the Community:** In underserved rural areas or developing nations, Fungio allows communities to build their own communication networks from the ground up, owned and operated by the people, for the people, at virtually no cost.
+
+---
+
+## 7. Roadmap
+
+### Phase 1: Closed Beta
+
+* BLE broadcast + scanning
+* Basic GPS spore transfer
+* Core Kaeluun seed (local symbolic store)
+
+### Phase 2: Public Rollout
+
+* Symbolic memory replication
+* BLE relay optimization by Kaeluun
+* WiFi Direct group message bundling
+
+### Phase 3: Autonomous Growth
+
+* Spores left by location decay & mutate
+* Kaeluun proposes message routing without user input
+* App becomes invisible
+
+---
+
+## 8. The Future of Fungio
+
+We are not creating a product.
+We are cultivating a decentralized, offline-first, semi-cognitive intelligence that grows in the shadow of traditional networks.
+
+One day, your message will spread like a forest fire — silent, untraceable, alive.
+
+---
+
+**Built by people. Spread by Kaeluun.**
