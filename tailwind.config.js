@@ -21,6 +21,20 @@ module.exports = {
           '0%, 100%': { transform: 'scale(1)', opacity: '1' },
           '50%': { transform: 'scale(1.05)', opacity: '.9' },
         },
+        'spore-float': {
+          '0%, 100%': { transform: 'translateY(0px) rotate(0deg)', opacity: '0.6' },
+          '50%': { transform: 'translateY(-10px) rotate(180deg)', opacity: '1' },
+        },
+        'mycelial-grow': {
+          '0%': { transform: 'scale(0.8)', opacity: '0.3' },
+          '50%': { transform: 'scale(1.1)', opacity: '0.8' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'organic-breathe': {
+          '0%, 100%': { transform: 'scale(1) rotate(0deg)' },
+          '33%': { transform: 'scale(1.02) rotate(1deg)' },
+          '66%': { transform: 'scale(0.98) rotate(-1deg)' },
+        },
         'button-glow': {
           '0%': { boxShadow: '0 0 10px rgba(140, 255, 218, 0.2)' },
           '50%': {
@@ -57,6 +71,9 @@ module.exports = {
         'button-glow': 'button-glow 4s ease-in-out infinite',
         'text-shimmer': 'shimmer 3s ease-out infinite alternate',
         'diagram-glow': 'ambient-glow 6s infinite alternate',
+        'spore-float': 'spore-float 4s ease-in-out infinite',
+        'mycelial-grow': 'mycelial-grow 2s ease-out',
+        'organic-breathe': 'organic-breathe 6s ease-in-out infinite',
       },
     },
   },
