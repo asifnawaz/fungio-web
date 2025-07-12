@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import Link from 'next/link';
 import { Feature, UseCase } from '../types';
 import { TbNetwork, TbWifiOff, TbBrain, TbMapPin, TbSeeding, TbWorld, TbRoute, TbShield } from 'react-icons/tb';
@@ -63,6 +64,18 @@ const useCases: UseCase[] = [
 export default function Home() {
   return (
     <>
+      <Head>
+        <title>Fungio - Your Messages Don't Just Travel—They Grow</title>
+        <meta name="description" content="Privacy-first messaging that evolves. Join the living network where your communications grow, adapt, and thrive without surveillance." />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta property="og:title" content="Fungio - Your Messages Don't Just Travel—They Grow" />
+        <meta property="og:description" content="Privacy-first messaging that evolves. Join the living network where your communications grow, adapt, and thrive without surveillance." />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Fungio - Your Messages Don't Just Travel—They Grow" />
+        <meta name="twitter:description" content="Privacy-first messaging that evolves. Join the living network where your communications grow, adapt, and thrive without surveillance." />
+      </Head>
+      
       {/* Hero Section */}
       <section className="pt-20 sm:pt-24 pb-16 sm:pb-20">
         <motion.div 
