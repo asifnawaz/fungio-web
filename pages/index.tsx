@@ -533,6 +533,130 @@ export default function Home() {
           <div className="absolute bottom-1/3 right-1/5 w-3 h-3 bg-neural-violet/15 rounded-full animate-spore-float" style={{ animationDelay: '3s' }} />
         </div>
       </section>
+
+      {/* About Section */}
+      <section className="py-16 sm:py-20 relative overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-8">
+          <motion.div
+            className="text-center mb-12 sm:mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-heading mb-4 sm:mb-6">
+              <span className="bg-gradient-to-r from-glow-mint via-neural-violet to-glow-mint bg-clip-text text-transparent">
+                About the Cultivator
+              </span>
+            </h2>
+            <p className="text-lg sm:text-xl text-muted-white/80 max-w-2xl mx-auto">
+              Meet the mind behind the mycelial network
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="max-w-4xl mx-auto"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+            viewport={{ once: true }}
+          >
+            <div className="bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-sm rounded-3xl border border-white/10 p-8 sm:p-12 shadow-[0_0_50px_rgba(140,255,218,0.1)] relative overflow-hidden">
+              {/* Background pattern */}
+              <div className="absolute inset-0 opacity-5">
+                <div className="absolute top-0 left-0 w-full h-full">
+                  <div className="absolute top-1/4 left-1/4 w-32 h-32 border border-glow-mint/20 rounded-full animate-organic-breathe" />
+                  <div className="absolute bottom-1/3 right-1/3 w-24 h-24 border border-neural-violet/20 rounded-full animate-organic-breathe" style={{ animationDelay: '2s' }} />
+                </div>
+              </div>
+
+              <div className="relative z-10 grid md:grid-cols-3 gap-8 sm:gap-12 items-center">
+                {/* Profile Image Placeholder */}
+                <div className="md:col-span-1 flex justify-center">
+                  <div className="relative">
+                    <div className="w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-br from-glow-mint/20 to-neural-violet/20 rounded-full flex items-center justify-center border-2 border-glow-mint/30 shadow-[0_0_30px_rgba(140,255,218,0.3)]">
+                      <span className="text-4xl sm:text-5xl">🍄</span>
+                    </div>
+                    {/* Floating spores around profile */}
+                    <div className="absolute -top-2 -right-2 w-3 h-3 bg-glow-mint/60 rounded-full animate-spore-float" />
+                    <div className="absolute -bottom-2 -left-2 w-2 h-2 bg-neural-violet/60 rounded-full animate-spore-float" style={{ animationDelay: '1s' }} />
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="md:col-span-2 text-center md:text-left">
+                  <h3 className="text-2xl sm:text-3xl font-bold font-heading mb-3 sm:mb-4">
+                    <span className="bg-gradient-to-r from-glow-mint to-neural-violet bg-clip-text text-transparent">
+                      Asif Nawaz
+                    </span>
+                  </h3>
+                  
+                  <p className="text-neural-violet font-semibold mb-4 sm:mb-6 text-lg">
+                    Founder & Chief Cultivator
+                  </p>
+                  
+                  <div className="space-y-4 text-muted-white/80 text-base sm:text-lg leading-relaxed">
+                    <p>
+                      Deep expertise in blockchain technology, engineering of software systems, and machine learning. 
+                      Published researcher in decentralized data management systems with a passion 
+                      for privacy-first, autonomous networks.
+                    </p>
+                    
+                    <p>
+                      <em>"We are not building another app. We are cultivating an organism—one that grows in silence, 
+                      adapts without permission, and thrives in the spaces where surveillance cannot reach."</em>
+                    </p>
+                    
+                    <p>
+                      Fungio represents a new paradigm: communication that doesn't just connect people, 
+                      but evolves with them. A living network that grows stronger through diversity, 
+                      remains resilient through decentralization, and protects privacy through design.
+                    </p>
+                  </div>
+                  
+                  {/* LinkedIn CTA */}
+                  <div className="mt-6 sm:mt-8">
+                    <motion.a
+                      href="https://www.linkedin.com/in/iamasifnawaz/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-3 bg-gradient-to-r from-glow-mint/10 to-neural-violet/10 hover:from-glow-mint/20 hover:to-neural-violet/20 border border-glow-mint/30 hover:border-glow-mint/50 rounded-xl px-6 py-3 transition-all duration-300 group"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <svg className="w-5 h-5 text-glow-mint group-hover:text-neural-violet transition-colors duration-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      </svg>
+                      <span className="text-white font-medium group-hover:text-glow-mint transition-colors duration-300">
+                        Connect on LinkedIn
+                      </span>
+                      <svg className="w-4 h-4 text-neural-violet group-hover:text-glow-mint transition-all duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </motion.a>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Decorative elements */}
+              <div className="absolute top-4 right-4 opacity-20">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-glow-mint rounded-full animate-pulse" />
+                  <div className="w-2 h-2 bg-neural-violet rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
+                  <div className="w-2 h-2 bg-glow-mint rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+        
+        {/* Background spores */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-1/3 left-1/12 w-1 h-1 bg-glow-mint/30 rounded-full animate-spore-float" />
+          <div className="absolute bottom-1/4 right-1/8 w-2 h-2 bg-neural-violet/20 rounded-full animate-spore-float" style={{ animationDelay: '4s' }} />
+          <div className="absolute top-3/4 left-3/4 w-1 h-1 bg-glow-mint/40 rounded-full animate-spore-float" style={{ animationDelay: '2s' }} />
+        </div>
+      </section>
     </>
   );
 }
