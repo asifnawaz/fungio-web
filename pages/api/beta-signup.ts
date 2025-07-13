@@ -1,23 +1,7 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { Resend } from 'resend';
 
-// Define type for Resend API error response
-interface ResendError extends Error {
-  statusCode?: number;
-  name: string;
-  message: string;
-}
-
-interface BetaSignupData {
-  email: string;
-  timestamp: string;
-}
-
-// Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-// Fungio Beta Audience ID - this should be created in your Resend dashboard
-const BETA_AUDIENCE_ID = process.env.RESEND_BETA_AUDIENCE_ID;
 
 // Send welcome email to beta tester
 async function sendWelcomeEmail(email: string, position: number) {
@@ -28,7 +12,7 @@ async function sendWelcomeEmail(email: string, position: number) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Fungio <noreply@fungio.network>',
+      from: 'Fungio <noreply@fungio.app>',
       to: [email],
       subject: '🍄 Welcome to the Fungio Beta - Your Spore Has Been Planted',
       html: createWelcomeEmailHTML(position),
@@ -149,7 +133,7 @@ function createWelcomeEmailHTML(position: number): string {
     <body>
       <div class="container">
         <div class="header">
-          <div class="logo">🍄 FUNGIO</div>
+          <div class="logo">🍄 Fungio</div>
           <div class="subtitle">Your Messages Don't Just Travel—They Grow</div>
         </div>
         
@@ -172,7 +156,7 @@ function createWelcomeEmailHTML(position: number): string {
           </ul>
           
           <div style="text-align: center;">
-            <a href="https://fungio.network" class="cta-button">Explore the Network</a>
+            <a href="https://fungio.app" class="cta-button">Explore the Network</a>
           </div>
         </div>
         
@@ -181,7 +165,7 @@ function createWelcomeEmailHTML(position: number): string {
           
           <p>🔬 <strong>Beta Testing Begins Soon:</strong> We'll notify you when the first beta version is ready for cultivation.</p>
           
-          <p>📖 <strong>Read the Manifesto:</strong> Dive deeper into our vision for decentralized communication at <a href="https://fungio.network/whitepaper" style="color: #8CFFDA;">fungio.network/whitepaper</a></p>
+          <p>📖 <strong>Read the Manifesto:</strong> Dive deeper into our vision for decentralized communication at <a href="https://fungio.app/whitepaper" style="color: #8CFFDA;">fungio.app/whitepaper</a></p>
           
           <p>🤝 <strong>Join the Community:</strong> Connect with other beta cultivators and share your thoughts on the future of private communication.</p>
         </div>
@@ -205,182 +189,64 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
+  const { email } = req.body;
+
+  // Validate email
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return res.status(400).json({ message: 'Valid email is required' });
+  }
+
+  // Check environment variables
+  if (!process.env.RESEND_API_KEY) {
+    return res.status(500).json({ message: 'Email service not configured' });
+  }
+
+  if (!process.env.RESEND_BETA_AUDIENCE_ID) {
+    return res.status(500).json({ message: 'Beta audience not configured' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+
   try {
-    console.log('Beta signup request received:', { body: req.body, method: req.method });
-    
-    const { email } = req.body;
-
-    // Enhanced validation
-    if (!email) {
-      console.log('Validation failed: No email provided');
-      return res.status(400).json({ message: 'Email is required' });
-    }
-
-    if (typeof email !== 'string' || !email.includes('@') || email.length < 5) {
-      console.log('Validation failed: Invalid email format:', email);
-      return res.status(400).json({ message: 'Valid email is required' });
-    }
-
-    // Debug log environment variables (don't log full API key in production)
-    console.log('Resend Config:', {
-      hasApiKey: !!process.env.RESEND_API_KEY,
-      apiKeyPrefix: process.env.RESEND_API_KEY ? `${process.env.RESEND_API_KEY.substring(0, 5)}...` : 'none',
-      hasAudienceId: !!BETA_AUDIENCE_ID,
-      audienceIdPrefix: BETA_AUDIENCE_ID ? `${BETA_AUDIENCE_ID.substring(0, 5)}...` : 'none',
-      nodeEnv: process.env.NODE_ENV
+    // Add contact to Resend audience
+    const { data: contactData, error: contactError } = await resend.contacts.create({
+      email: cleanEmail,
+      unsubscribed: false,
+      audienceId: process.env.RESEND_BETA_AUDIENCE_ID,
     });
 
-    // Check if Resend is properly configured
-    if (!process.env.RESEND_API_KEY) {
-      const errorMsg = 'RESEND_API_KEY not configured';
-      console.error(errorMsg);
-      return res.status(500).json({ 
-        message: 'Email service not configured',
-        error: process.env.NODE_ENV === 'development' ? errorMsg : undefined
-      });
+    if (contactError) {
+      // Handle duplicate email
+      if (contactError.message && contactError.message.includes('already exists')) {
+        return res.status(409).json({ message: 'Email already registered for beta' });
+      }
+      
+      console.error('Resend contact creation error:', contactError);
+      return res.status(500).json({ message: 'Failed to register for beta' });
     }
 
-    if (!BETA_AUDIENCE_ID) {
-      const errorMsg = 'RESEND_BETA_AUDIENCE_ID not configured';
-      console.error(errorMsg);
-      return res.status(500).json({ 
-        message: 'Beta audience not configured',
-        error: process.env.NODE_ENV === 'development' ? errorMsg : undefined
-      });
-    }
-
-    const cleanEmail = email.toLowerCase().trim();
-    console.log('Processing signup for:', cleanEmail);
-
+    // Send welcome email
     try {
-      // Add contact to Resend Audience for beta signups
-      console.log('Attempting to add contact to Resend audience:', { 
-        email: cleanEmail, 
-        audienceId: BETA_AUDIENCE_ID.substring(0, 5) + '...' 
-      });
-      
-      const { data: contactData, error: contactError } = await resend.contacts.create({
-        email: cleanEmail,
-        unsubscribed: false,
-        audienceId: BETA_AUDIENCE_ID,
-      });
-
-      if (contactError) {
-        // Type assertion for Resend error response
-        const resendError: ResendError = contactError;
-        const errorDetails = {
-          message: resendError.message,
-          name: resendError.name,
-          statusCode: resendError.statusCode,
-        };
-        
-        console.error('Failed to create contact in Resend:', errorDetails);
-        
-        // Check if it's a duplicate email error
-        if (resendError.message && resendError.message.includes('already exists')) {
-          return res.status(409).json({ 
-            message: 'Email already registered for beta',
-            error: process.env.NODE_ENV === 'development' ? errorDetails : undefined
-          });
-        }
-        
-        // Handle specific Resend API errors
-        if (resendError.statusCode === 401) {
-          return res.status(500).json({ 
-            message: 'Authentication failed. Please check your Resend API key.',
-            error: process.env.NODE_ENV === 'development' ? errorDetails : undefined
-          });
-        }
-        
-        if (resendError.statusCode === 404) {
-          return res.status(500).json({ 
-            message: 'Beta audience not found. Please check your audience ID.',
-            error: process.env.NODE_ENV === 'development' ? errorDetails : undefined
-          });
-        }
-        
-        return res.status(500).json({ 
-          message: 'Failed to register for beta',
-          error: process.env.NODE_ENV === 'development' ? errorDetails : undefined
-        });
-      }
-
-      console.log('Successfully added contact to Resend audience:', contactData);
-
-      // Get the current audience size to determine position
-      let position = 1;
-      try {
-        const { data: audienceData, error: audienceError } = await resend.audiences.get(BETA_AUDIENCE_ID);
-        if (!audienceError && audienceData) {
-          // Note: Resend doesn't provide direct contact count, so we'll use a default or estimate
-          position = Math.floor(Math.random() * 100) + 1; // Placeholder - you may want to track this differently
-        }
-      } catch (audienceError) {
-        console.warn('Could not get audience data for position:', audienceError);
-      }
-
-      // Send welcome email via Resend
-      try {
-        await sendWelcomeEmail(cleanEmail, position);
-        console.log('Welcome email sent successfully');
-      } catch (emailError) {
-        console.error('Failed to send welcome email, but signup still successful:', emailError);
-        // Don't fail the signup if welcome email fails
-      }
-
-      // Log signup for monitoring
-      console.log(`✅ New beta signup: ${cleanEmail} at ${new Date().toISOString()}`);
-
-      return res.status(200).json({ 
-        message: 'Successfully joined the beta waitlist! Check your email for next steps.',
-        data: {
-          email: cleanEmail,
-          position: position,
-          contactId: contactData?.id
-        }
-      });
-
-    } catch (error) {
-      const err = error as Error | ResendError;
-      console.error('Resend API error:', {
-        message: err.message,
-        name: err.name,
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-        ...('statusCode' in err && { statusCode: (err as ResendError).statusCode })
-      });
-      
-      return res.status(500).json({ 
-        message: 'Failed to process beta signup',
-        ...(process.env.NODE_ENV === 'development' && { 
-          error: {
-            message: err.message,
-            ...('statusCode' in err && { statusCode: (err as ResendError).statusCode })
-          }
-        })
-      });
+      await sendWelcomeEmail(cleanEmail, Math.floor(Math.random() * 100) + 1);
+    } catch (emailError) {
+      console.error('Welcome email failed:', emailError);
+      // Don't fail the signup if email fails
     }
+
+    return res.status(200).json({ 
+      message: 'Successfully joined the beta waitlist! Check your email for next steps.',
+      data: {
+        email: cleanEmail,
+        contactId: contactData?.id
+      }
+    });
 
   } catch (error) {
-    console.error('❌ Beta signup error:', error);
-    
-    // Return more specific error information in development
-    const isDev = process.env.NODE_ENV === 'development';
-    return res.status(500).json({ 
-      message: 'Internal server error',
-      ...(isDev && { error: error instanceof Error ? error.message : String(error) })
-    });
+    console.error('Beta signup error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
