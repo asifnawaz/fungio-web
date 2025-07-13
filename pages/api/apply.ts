@@ -19,7 +19,6 @@ export default async function handler(
   }
 
   if (!audienceId) {
-    console.error('AUDIENCE_ID is not set in environment variables.');
     return res.status(500).json({ error: 'Server configuration error.' });
   }
 
@@ -31,7 +30,6 @@ export default async function handler(
 
     return res.status(201).json({ success: true });
   } catch (error) {
-    console.error(error);
     if (error instanceof Error) {
         return res.status(500).json({ error: error.message });
     }

@@ -6,8 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // Send welcome email to beta tester
 async function sendWelcomeEmail(email: string, position: number) {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not found, skipping email send');
-    return;
+    return { success: false, error: 'Email service not configured' };
   }
 
   try {
@@ -19,12 +18,12 @@ async function sendWelcomeEmail(email: string, position: number) {
     });
 
     if (error) {
-      console.error('Failed to send welcome email:', error);
-    } else {
-      console.log('Welcome email sent successfully:', data);
+      return { success: false, error: error.message };
     }
+    
+    return { success: true, data };
   } catch (error) {
-    console.error('Error sending welcome email:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
@@ -225,28 +224,22 @@ export default async function handler(
         return res.status(409).json({ message: 'Email already registered for beta' });
       }
       
-      console.error('Resend contact creation error:', contactError);
       return res.status(500).json({ message: 'Failed to register for beta' });
     }
 
-    // Send welcome email
-    try {
-      await sendWelcomeEmail(cleanEmail, Math.floor(Math.random() * 100) + 1);
-    } catch (emailError) {
-      console.error('Welcome email failed:', emailError);
-      // Don't fail the signup if email fails
-    }
-
+    // Send welcome email (don't fail signup if email fails)
+    const emailResult = await sendWelcomeEmail(cleanEmail, Math.floor(Math.random() * 100) + 1);
+    
     return res.status(200).json({ 
       message: 'Successfully joined the beta waitlist! Check your email for next steps.',
       data: {
         email: cleanEmail,
-        contactId: contactData?.id
+        contactId: contactData?.id,
+        emailSent: emailResult.success
       }
     });
 
   } catch (error) {
-    console.error('Beta signup error:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 }

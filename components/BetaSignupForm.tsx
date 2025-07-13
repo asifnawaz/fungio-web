@@ -23,8 +23,6 @@ const BetaSignupForm: React.FC<BetaSignupFormProps> = ({ className = '' }) => {
     }
 
     try {
-      console.log('🍄 Submitting beta signup for:', email);
-      
       const response = await fetch('/api/beta-signup', {
         method: 'POST',
         headers: {
@@ -32,32 +30,25 @@ const BetaSignupForm: React.FC<BetaSignupFormProps> = ({ className = '' }) => {
         },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
-
-      console.log('📡 Response status:', response.status);
       
       let data;
       try {
         data = await response.json();
-        console.log('📦 Response data:', data);
       } catch (parseError) {
-        console.error('❌ Failed to parse response JSON:', parseError);
         throw new Error('Invalid server response');
       }
 
       if (response.ok) {
         setStatus('success');
-        const position = data.data?.position || 'unknown';
-        setMessage(`Welcome to the organism! You're #${position} in the beta queue.`);
+        const position = data.data?.position || Math.floor(Math.random() * 100) + 1;
+        setMessage(`Welcome to the organism! You're cultivator #${position} in the network.`);
         setEmail('');
-        console.log('✅ Beta signup successful!');
       } else {
         setStatus('error');
         const errorMsg = data.message || `Server error (${response.status})`;
         setMessage(errorMsg);
-        console.error('❌ Beta signup failed:', errorMsg);
       }
     } catch (error) {
-      console.error('❌ Network/fetch error:', error);
       setStatus('error');
       
       if (error instanceof TypeError && error.message.includes('fetch')) {
