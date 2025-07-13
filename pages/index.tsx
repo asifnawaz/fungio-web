@@ -14,7 +14,9 @@ import FeatureCard from '../components/FeatureCard';
 import UseCaseCard from '../components/UseCaseCard';
 import FungalButton from '../components/FungalButton';
 import BetaSignupForm from '../components/BetaSignupForm';
+import { shouldReduceAnimations } from '../utils/performance';
 import { motion } from 'framer-motion';
+import React from 'react';
 
 const InteractiveNetwork = dynamic(() => import('../components/InteractiveNetwork'), {
   ssr: false,
@@ -62,6 +64,12 @@ const useCases: UseCase[] = [
 ];
 
 export default function Home() {
+  const [reduceAnimations, setReduceAnimations] = React.useState(false);
+
+  React.useEffect(() => {
+    setReduceAnimations(shouldReduceAnimations());
+  }, []);
+
   return (
     <>
       <Head>
@@ -89,7 +97,7 @@ export default function Home() {
         >
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-semibold mb-4 sm:mb-6 px-4 sm:px-0">
             Your Messages Don't Just Travel—
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-glow-mint to-neural-violet animate-text-shimmer block sm:inline">
+            <span className={`text-transparent bg-clip-text bg-gradient-to-r from-glow-mint to-neural-violet ${reduceAnimations ? '' : 'animate-text-shimmer'} block sm:inline`}>
               They Grow.
             </span>
           </h1>
@@ -99,7 +107,7 @@ export default function Home() {
           <p className="text-sm sm:text-base text-muted-white/60 mb-8 sm:mb-10 max-w-2xl mx-auto italic px-4 sm:px-0">
             "We are not creating a product. We are cultivating a decentralized intelligence that grows in the shadow of traditional networks."
           </p>
-          <a href="#beta" className="inline-block bg-glow-mint text-fungal-dark font-bold font-heading py-3 px-6 sm:py-4 sm:px-10 rounded-lg text-lg sm:text-xl transition-all duration-300 hover:no-underline hover:bg-neural-violet hover:text-white hover:scale-110 hover:shadow-[0_0_25px_rgba(122,92,255,0.8)] animate-button-glow mx-4 sm:mx-0">
+          <a href="#beta" className={`inline-block bg-glow-mint text-fungal-dark font-bold font-heading py-3 px-6 sm:py-4 sm:px-10 rounded-lg text-lg sm:text-xl transition-all duration-300 hover:no-underline hover:bg-neural-violet hover:text-white ${reduceAnimations ? '' : 'hover:scale-110 hover:shadow-[0_0_25px_rgba(122,92,255,0.8)] animate-button-glow'} mx-4 sm:mx-0`}>
             Cultivate the Network
           </a>
         </motion.div>
@@ -485,15 +493,19 @@ export default function Home() {
           {/* Enhanced floating spores background */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {/* Primary spores */}
-            <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-glow-mint/30 rounded-full animate-spore-float shadow-[0_0_10px_rgba(140,255,218,0.4)]" />
-            <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-neural-violet/40 rounded-full animate-spore-float shadow-[0_0_8px_rgba(122,92,255,0.4)]" style={{ animationDelay: '2s' }} />
-            <div className="absolute bottom-1/4 left-1/3 w-4 h-4 bg-glow-mint/25 rounded-full animate-spore-float shadow-[0_0_12px_rgba(140,255,218,0.3)]" style={{ animationDelay: '4s' }} />
-            <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-neural-violet/35 rounded-full animate-spore-float shadow-[0_0_8px_rgba(122,92,255,0.3)]" style={{ animationDelay: '6s' }} />
-            
-            {/* Additional micro spores for richness */}
-            <div className="absolute top-1/2 left-1/6 w-1 h-1 bg-glow-mint/40 rounded-full animate-spore-float" style={{ animationDelay: '1s' }} />
-            <div className="absolute top-3/4 right-1/6 w-1 h-1 bg-neural-violet/50 rounded-full animate-spore-float" style={{ animationDelay: '3s' }} />
-            <div className="absolute top-1/6 right-1/2 w-1 h-1 bg-glow-mint/35 rounded-full animate-spore-float" style={{ animationDelay: '5s' }} />
+            {!reduceAnimations && (
+              <>
+                <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-glow-mint/30 rounded-full animate-spore-float shadow-[0_0_10px_rgba(140,255,218,0.4)]" />
+                <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-neural-violet/40 rounded-full animate-spore-float shadow-[0_0_8px_rgba(122,92,255,0.4)]" style={{ animationDelay: '2s' }} />
+                <div className="absolute bottom-1/4 left-1/3 w-4 h-4 bg-glow-mint/25 rounded-full animate-spore-float shadow-[0_0_12px_rgba(140,255,218,0.3)]" style={{ animationDelay: '4s' }} />
+                <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-neural-violet/35 rounded-full animate-spore-float shadow-[0_0_8px_rgba(122,92,255,0.3)]" style={{ animationDelay: '6s' }} />
+                
+                {/* Additional micro spores for richness */}
+                <div className="absolute top-1/2 left-1/6 w-1 h-1 bg-glow-mint/40 rounded-full animate-spore-float" style={{ animationDelay: '1s' }} />
+                <div className="absolute top-3/4 right-1/6 w-1 h-1 bg-neural-violet/50 rounded-full animate-spore-float" style={{ animationDelay: '3s' }} />
+                <div className="absolute top-1/6 right-1/2 w-1 h-1 bg-glow-mint/35 rounded-full animate-spore-float" style={{ animationDelay: '5s' }} />
+              </>
+            )}
             
             {/* Mycelial threads */}
             <div className="absolute top-1/3 left-0 w-full h-px bg-gradient-to-r from-transparent via-glow-mint/10 to-transparent animate-pulse" style={{ animationDelay: '2s' }} />

@@ -28,21 +28,33 @@ const InteractiveNetwork: React.FC = () => {
   const [clickedNode, setClickedNode] = useState<number | null>(null);
   const [spores, setSpores] = useState<SporeParticle[]>([]);
   const [pulseAnimation, setPulseAnimation] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Enhanced spore generation with variety
+  // Detect mobile for performance optimization
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Optimized spore generation - fewer spores on mobile
   useEffect(() => {
     const generateSpores = () => {
-      const colors = ['#8CFFDA', '#7A5CFF', '#FF6B9D', '#C4B5FD'];
+      const colors = ['#8CFFDA', '#7A5CFF'];
+      const sporeCount = isMobile ? 8 : 15; // Reduced count for mobile
       const newSpores: SporeParticle[] = [];
-      for (let i = 0; i < 25; i++) {
+      for (let i = 0; i < sporeCount; i++) {
         newSpores.push({
           id: i,
           x: Math.random() * 800,
-          y: Math.random() * 400,
-          vx: (Math.random() - 0.5) * 0.8,
-          vy: (Math.random() - 0.5) * 0.8,
+          y: Math.random() * 300,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
           life: Math.random() * 100,
-          size: Math.random() * 3 + 1,
+          size: Math.random() * 2 + 1,
           color: colors[Math.floor(Math.random() * colors.length)]
         });
       }
@@ -50,17 +62,20 @@ const InteractiveNetwork: React.FC = () => {
     };
 
     generateSpores();
+    
+    // Slower animation on mobile for better performance
+    const animationInterval = isMobile ? 120 : 80;
     const interval = setInterval(() => {
       setSpores(prev => prev.map(spore => ({
         ...spore,
         x: (spore.x + spore.vx + 800) % 800,
-        y: (spore.y + spore.vy + 400) % 400,
+        y: (spore.y + spore.vy + 300) % 300,
         life: (spore.life + 1) % 100
       })));
-    }, 60);
+    }, animationInterval);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isMobile]);
 
   // Enhanced nodes with better positioning and hierarchy - increased sizes for better visibility
   const nodes: NetworkNode[] = [
@@ -111,9 +126,9 @@ const InteractiveNetwork: React.FC = () => {
         height="300" 
         viewBox="0 0 800 300" 
         className="overflow-visible h-48 sm:h-64 md:h-80 lg:h-96"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1, ease: 'easeOut' }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: isMobile ? 0.4 : 0.8, ease: 'easeOut' }}
       >
         <defs>
           {/* Enhanced multi-layer glow filters */}

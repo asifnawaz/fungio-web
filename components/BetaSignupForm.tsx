@@ -13,29 +13,60 @@ const BetaSignupForm: React.FC<BetaSignupFormProps> = ({ className = '' }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('loading');
+    setMessage('');
+
+    // Basic client-side validation
+    if (!email || !email.includes('@') || email.length < 5) {
+      setStatus('error');
+      setMessage('Please enter a valid email address.');
+      return;
+    }
 
     try {
+      console.log('🍄 Submitting beta signup for:', email);
+      
       const response = await fetch('/api/beta-signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
 
-      const data = await response.json();
+      console.log('📡 Response status:', response.status);
+      
+      let data;
+      try {
+        data = await response.json();
+        console.log('📦 Response data:', data);
+      } catch (parseError) {
+        console.error('❌ Failed to parse response JSON:', parseError);
+        throw new Error('Invalid server response');
+      }
 
       if (response.ok) {
         setStatus('success');
-        setMessage(`Welcome to the organism! You're #${data.data.position} in the beta queue.`);
+        const position = data.data?.position || 'unknown';
+        setMessage(`Welcome to the organism! You're #${position} in the beta queue.`);
         setEmail('');
+        console.log('✅ Beta signup successful!');
       } else {
         setStatus('error');
-        setMessage(data.message || 'Something went wrong. Please try again.');
+        const errorMsg = data.message || `Server error (${response.status})`;
+        setMessage(errorMsg);
+        console.error('❌ Beta signup failed:', errorMsg);
       }
     } catch (error) {
+      console.error('❌ Network/fetch error:', error);
       setStatus('error');
-      setMessage('Network error. Please check your connection and try again.');
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        setMessage('Connection failed. Please check your internet and try again.');
+      } else if (error instanceof Error) {
+        setMessage(`Error: ${error.message}`);
+      } else {
+        setMessage('Something went wrong. Please try again in a moment.');
+      }
     }
   };
 
