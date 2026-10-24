@@ -19,7 +19,8 @@ python -m mycelium.cli killtest --url http://localhost:8081 --model student \
     --templates 50 --variants 10 --trials killtest-trials.jsonl --out killtest-report.json
 ```
 
-- Use the model that will run HIKMAT: the spec 002 student once it exists. Until then, any small instruct model gives a first reading for that model only.
+- First reading (T010a): the untrained student, `unsloth/Qwen3.5-2B-GGUF` file `Qwen3.5-2B-Q8_0.gguf` (2.01 GB). Decisive run (T010b): the trained spec 002 student.
+- Before the full run, send one request with `curl` and read the raw reply. If it has no `ANSWER:` line (cut off, or long thinking text), raise `--max-tokens` or switch the model to non-thinking mode as its model card describes; don't guess the switch.
 - Pick a model whose accuracy without hints is roughly 30–90% on these problems, so there is room to move in both directions.
 - If the run stops, run the same command again; `--trials` resumes it.
 - `inconclusive`: rerun with `--templates 100` (trials already in the file are reused where templates overlap).

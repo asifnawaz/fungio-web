@@ -1,6 +1,13 @@
 # AGENTS.md: start here
 
-Context for any AI coding agent (Claude Code, Codex, Cursor, Aider) working on MYCELIUM. Read this file, then `.specify/memory/constitution.md`, then the spec you are working on under `specs/`.
+Context for any AI coding agent (Claude Code, Codex, Cursor, Aider) working on MYCELIUM. Read this file, then `.specify/memory/constitution.md`, then `specs/ROADMAP.md`.
+
+## Start here (fresh clone, every session)
+
+1. `python -m mycelium.cli doctor` tells you what this machine can run (`[CPU]` or `[GPU]` tasks) and what is missing.
+2. `pytest -q` and the ruff command below must pass.
+3. Open `specs/ROADMAP.md` and take the first open row whose dependencies are done and whose marker this machine can run. Its spec's `tasks.md` says exactly which files to touch and what proves it done.
+4. `[OWNER]` rows: ask the question written in the roadmap, then wait. Never guess a model id, dataset, flag or number; if a spec doesn't say, ask.
 
 ## What this project is
 
@@ -17,7 +24,8 @@ The project is free and open source, and will stay that way (intended license: A
 - **Done (spec 001):** full v0.1 pipeline on a mock student, with a mock, simulated-HTTP or real teacher, on synthetic problems, on real GSM8K + MMLU samples (`--suite real`) or on GSM-Symbolic + MMLU (`--suite symbolic`), in a basic or complex scenario (`--scenario complex`). Memory's benefit is measured by `python -m mycelium.cli insights` (an assumption sweep, not proof). See `specs/001-v0.1-pipeline/`.
 - **Harness done, real run pending (spec 003):** the HIKMAT kill test on GSM-Symbolic (`python -m mycelium.cli killtest`). Decision rules are pre-registered in `specs/003-insight-kill-test/research.md`; don't change them after seeing a real result.
 - **Next (spec 002):** real models on the owner's GPU PC. See `specs/002-real-models/tasks.md` and pick the first unchecked task. Once a real student runs, T015a (= spec 003's real run) comes before any other HIKMAT work.
-- Tests: 96, about 60 s on 4 CPU cores.
+- **Later (drafts, blocked):** spec 004 (phones and laptops), spec 005 (insight-sharing hub). Don't build them before their gates in `specs/ROADMAP.md`.
+- Tests: 98, about 60 s on 4 CPU cores.
 - **Research track (not scheduled):** see `docs/decisions.md` → "Research track".
 
 ## Layout
@@ -28,6 +36,7 @@ mycelium/
   CLAUDE.md                 points Claude Code here
   .specify/memory/constitution.md   non-negotiable rules
   .specify/templates/       Spec Kit templates (spec, plan, tasks, checklist, constitution), MIT
+  specs/ROADMAP.md          ordered queue of every next task across specs (start here)
   specs/NNN-*/              spec.md, plan.md, research.md, data-model.md, quickstart.md,
                             contracts/, checklists/, tasks.md per feature
   docs/decisions.md         decisions, rejected options, measured numbers
@@ -42,6 +51,7 @@ mycelium/
     data/samples/           330 GSM8K + MMLU questions (MIT) and GSM-Symbolic (5,000 rows, Apple license); see ATTRIBUTION.md there
     insights.py             sweep of the mock's hint assumptions vs a no-memory router
     killtest.py             spec 003: does a stored verified method help a real model?
+    doctor.py               what this machine can run (GPU, VRAM, disk, tools)
     bench.py cli.py
   scripts/fetch_datasets.py full GSM8K/MMLU download (needs Hugging Face access)
   tests/                    pytest, one file per module + end-to-end
@@ -53,8 +63,9 @@ mycelium/
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev,faiss]"
+python -m mycelium.cli doctor                       # what this machine can run
 pytest -q                                           # must stay green
-ruff check --select F,E9,B --ignore B008 --line-length 120 mycelium tests
+ruff check --select F,E9,B --ignore B008 --line-length 120 mycelium tests scripts
 python -m mycelium.cli e2e --out report.json        # mock teacher, synthetic problems
 python -m mycelium.cli e2e --suite real --scenario complex   # real GSM8K + MMLU questions
 python -m mycelium.cli sim-teacher --port 8080 &    # simulated HTTP teacher

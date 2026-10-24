@@ -17,7 +17,8 @@
 - [x] Success criteria are measurable (SC-001–SC-004)
 - [x] Edge cases listed (format drift, VRAM, tokenizer mismatch, inconclusive kill test)
 - [x] Scope bounded; out-of-scope items named in Assumptions
-- [ ] Student model chosen by name and its tokenizer match verified (decided in T010)
+- [x] Student model chosen by name (`Qwen/Qwen3.5-2B`, see `specs/ROADMAP.md`)
+- [ ] Student/teacher token ids confirmed identical (T010's first check)
 
 ## Feature readiness
 

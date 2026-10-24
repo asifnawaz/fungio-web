@@ -134,5 +134,5 @@ Speculative decoding for the teacher, batched HIKMAT lookups, and the Strata exp
 ## Assumptions
 
 - The owner's PC has the stated hardware and can reach Hugging Face; this cloud container cannot.
-- The newest ~1.5–2B Qwen shares the teacher's tokenizer family (to verify in T010).
+- The student is `Qwen/Qwen3.5-2B`: same architecture family and vocab size as the teacher (checked on Hugging Face, see `specs/ROADMAP.md`); identical token ids still to confirm in T010.
 - Out of scope: phones, the insight-sharing hub, FOLD/CODON/H-Net research. DeepSeek V4.1 Flash on Strata appears only as the US6 testbed (T022).

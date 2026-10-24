@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from mycelium import insights, killtest
+from mycelium import doctor, insights, killtest
 from mycelium.bench import benchmark, format_rows
 from mycelium.models.openai_compat import OpenAICompatBackend
 from mycelium.pipeline import E2EConfig, run_e2e
@@ -93,10 +93,17 @@ def main() -> None:
     kt.add_argument("--seed", type=int, default=0)
     kt.add_argument("--trials", help="append trials here as JSON lines; a rerun resumes from it")
     kt.add_argument("--out", help="write the analysis as JSON here")
+    doc = sub.add_parser("doctor", help="what this machine can run ([CPU] / [GPU] roadmap tasks)")
+    doc.add_argument("--network", action="store_true", help="also check that huggingface.co is reachable")
     args = parser.parse_args()
 
     if args.command == "bench":
         print(format_rows(benchmark(args.n, args.queries, kinds=args.index), args.n))
+        return
+    if args.command == "doctor":
+        report = doctor.check(network=args.network)
+        print(json.dumps(report, indent=2))
+        print("\n".join(doctor.advice(report)))
         return
     if args.command == "killtest":
         _killtest(args, parser)

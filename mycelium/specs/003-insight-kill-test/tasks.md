@@ -37,8 +37,10 @@ description: "Tasks for the HIKMAT kill test on GSM-Symbolic"
 - [x] T007 [US1] Analysis: paired differences, bootstrap over templates, verdict, text report (`mycelium/killtest.py: analyze, verdict, format_report`)
 - [x] T008 [US1] CLI subcommand `killtest` with `--url/--mock`, `--api-key-env`, sizes, `--out` (`mycelium/cli.py`)
 - [x] T009 [US1] Report contract and a test that the report matches it (`contracts/report.schema.json`, `tests/test_killtest.py`)
-- [ ] T010 [US1] **Real run** on the GPU PC with the spec 002 student (or a stand-in small instruct model, labeled as such), 50 × 10 (`quickstart.md` §2)
-  Proof: report, command, model file and hardware under "Real runs" in `research.md`; verdict in `docs/decisions.md`.
+- [ ] T010a [US1] **First reading** with the untrained student, before any training: `hf download unsloth/Qwen3.5-2B-GGUF Qwen3.5-2B-Q8_0.gguf --local-dir models`, `llama-server -m models/Qwen3.5-2B-Q8_0.gguf -ngl 99 -c 8192 --port 8081`, then `python -m mycelium.cli killtest --url http://localhost:8081 --model qwen3.5-2b --templates 50 --variants 10 --trials reports/killtest-base.jsonl --out reports/killtest-base.json`.
+  Proof: report, command, model file and hardware under "Real runs" in `research.md`, labeled "base Qwen3.5-2B, untrained"; verdict in `docs/decisions.md`. Gate: `specs/ROADMAP.md` row 4.
+- [ ] T010b [US1] **Decisive run** with the trained student (after spec 002 T013), same command with its server and `--trials reports/killtest-trained.jsonl`. This is spec 002 T015a.
+  Proof: as T010a, labeled with the student's `version`. Gate: `specs/ROADMAP.md` row 15.
 
 **Checkpoint**: the verdict decides whether spec 002 T015–T016 go ahead.
 
@@ -50,7 +52,7 @@ description: "Tasks for the HIKMAT kill test on GSM-Symbolic"
 
 - [x] T011 [P] [US2] Test: fitted `hint_gain` interval contains the true 0.4 (`tests/test_killtest.py`)
 - [x] T012 [US2] Calibration fit by bisection on the measured problems, averaged over 5 mock seeds, matching differences (`mycelium/killtest.py: fit_mock`); record the two rejected estimators in `research.md`
-- [ ] T013 [US2] After T010: run `insights --suite symbolic` with the fitted values and add the row to `research.md`
+- [ ] T013 [US2] After T010b: run `insights --suite symbolic` with the fitted values and add the row to `research.md`
 
 ## Phase 5: User Story 3 - Resume a long run (Priority: P3)
 
@@ -71,7 +73,7 @@ description: "Tasks for the HIKMAT kill test on GSM-Symbolic"
 ## Dependencies & Execution Order
 
 - Setup → Foundational → US1. US2 and US3 build on US1's `run`/`analyze` but are tested independently.
-- T010 needs a real model server (spec 002 T001–T004 or any instruct GGUF). T013 needs T010.
+- T010a needs only spec 002 T001 and the student GGUF. T010b needs spec 002 T013. T013 needs T010b.
 - T017–T019 come after a `pays` or `inconclusive` verdict; after `kill` they are dropped.
 
 ## Implementation Strategy
@@ -80,4 +82,4 @@ US1 alone answers the owner's question. US2 makes the answer actionable. US3 onl
 
 ## Convergence
 
-Checked against spec.md on 2026-10-24: FR-001–FR-011 are covered by T001–T015 except the real run (T010, SC-003, SC-004), which needs the GPU PC.
+Checked against spec.md on 2026-10-24: FR-001–FR-011 are covered by T001–T015 except the real runs (T010a, T010b; SC-003, SC-004), which needs the GPU PC.

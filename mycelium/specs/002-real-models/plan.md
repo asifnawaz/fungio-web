@@ -47,6 +47,7 @@ No violations.
 ```text
 specs/002-real-models/
 ├── spec.md  plan.md  research.md  quickstart.md  tasks.md
+├── contracts/student-backend.md   # HFStudent interface (T010–T013)
 └── checklists/requirements.md
 
 mycelium/mycelium/

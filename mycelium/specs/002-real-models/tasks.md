@@ -4,7 +4,7 @@ description: "Tasks for real models on one GPU"
 
 # Tasks: Real models on one GPU
 
-**Input**: `specs/002-real-models/` (spec.md, plan.md, research.md, quickstart.md)
+**Input**: `specs/002-real-models/` (spec.md, plan.md, research.md, quickstart.md, contracts/student-backend.md). Execution order across specs: `specs/ROADMAP.md`.
 
 **Tests**: Required (constitution X). Tick a task only when its proof passes and `pytest -q` stays green.
 
@@ -16,8 +16,8 @@ description: "Tasks for real models on one GPU"
 
 ## Phase 1: Setup (on the GPU PC)
 
-- [ ] T001 [US1] Environment: Python ≥3.10, CUDA drivers, `pip install -e ".[dev,faiss]"`, llama.cpp built or installed with CUDA.
-  Proof: `pytest -q` passes; `llama-server --version` prints.
+- [ ] T001 [US1] Environment. Run `python -m mycelium.cli doctor --network` first; it reports OS, GPU, VRAM, free disk, and missing tools. Then: Python ≥3.10 venv, `pip install -e ".[dev,faiss]"`, `pip install -U "huggingface_hub[cli]"`, NVIDIA driver with CUDA, and llama.cpp with CUDA (Linux: build from source with CUDA enabled; Windows: the CUDA build from the llama.cpp GitHub releases page; check the release notes for the exact asset and flags, don't guess). Need about 40 GB free disk.
+  Proof: `doctor` shows `"GPU": true`; `pytest -q` passes; `llama-server --version` prints. Write the doctor output into `research.md`.
 - [ ] T002 [US1] Download the teacher: `hf download ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf --local-dir models`.
   Proof: file present, 11.8 GB. Depends: T001.
 - [ ] T003 [US1] Serve it: `llama-server -m models/Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf -ngl 99 -c 32768 --port 8080`. Record VRAM use and tokens/s in `research.md`.
@@ -25,8 +25,8 @@ description: "Tasks for real models on one GPU"
 
 ## Phase 2: Foundational (trustworthy evaluation; blocks every quality claim)
 
-- [ ] T006 [P] [US2] Extend `mycelium/evals/real.py`: GSM8K, MMLU and GSM-Symbolic loaders exist. Add MATH-500, HumanEval+/MBPP+ (EvalPlus) and factual QA with unanswerable questions; run `scripts/fetch_datasets.py` on the PC and evaluate on the full sets.
-  Proof: loader tests with tiny fixture files (no network in tests); full-set teacher accuracy in `research.md`.
+- [ ] T006 [P] [US2] Extend `mycelium/evals/real.py` and `scripts/fetch_datasets.py` with these sources (ids and licenses checked 2026-10-24, see `specs/ROADMAP.md`): `HuggingFaceH4/MATH-500` (math, final answer in `\boxed{}`; confirm the license at github.com/openai/prm800k before committing any rows), `evalplus/humanevalplus` and `evalplus/mbppplus` (code, Apache-2.0; tests run through JUDGE's sandbox), `basicv8vc/SimpleQA` (short facts, MIT; a 2B student should mostly abstain), `truthfulqa/truthful_qa` (Apache-2.0). Unanswerable questions keep coming from `pipeline._unanswerables` (fictional entities). Downloads go to `data/full/` (gitignored); only small MIT/Apache samples may be committed, with `ATTRIBUTION.md` rows.
+  Proof: loader tests with tiny fixture files (no network in tests); full-set teacher accuracy per source in `research.md`.
 - [ ] T007 [P] [US2] Code sandbox: `judge_code` runs inside a container (no network, CPU/memory/time limits) when available, otherwise the subprocess path with a loud warning.
   Proof: tests show a network call and an infinite loop are both blocked.
 - [ ] T008 [US2] Private holdout: a split never used for tuning, fingerprinted like `GoldenSet`; loaded only with a `--final` flag.
@@ -49,10 +49,10 @@ description: "Tasks for real models on one GPU"
 
 **Independent Test**: holdout table (accuracy, ECE, hallucination) for base, SFT and RLCR student in `research.md`.
 
-- [ ] T010 [US3] `models/hf_student.py`: `TrainableBackend` over a ~1.5–2B Qwen (transformers), emitting `ANSWER:`/`CONFIDENCE:` and reusing `parse_reply`. Verify the tokenizer matches the teacher family.
-  Proof: inference test on a tiny model (CPU) behind a skip-if-no-torch marker.
-- [ ] T011 [US3] SFT from verified teacher traces (`distill.build_distillation_set` output) with TRL + Unsloth **or** Liger, LoRA.
-  Proof: holdout accuracy above the base student; numbers in `research.md`.
+- [ ] T010 [US3] `models/hf_student.py`: `HFStudent` for `Qwen/Qwen3.5-2B`, exactly as `contracts/student-backend.md` says. Add `torch`, `transformers`, `peft`, `trl` as a new optional extra `student` in `pyproject.toml` (not in the base install). First compare student and teacher token ids on 20 GSM8K questions and record the result.
+  Proof: `tests/test_hf_student.py` passes with torch installed and is skipped without it; base-model accuracy and ECE on the holdout in `research.md`.
+- [ ] T011 [US3] SFT from verified teacher traces (`distill.build_distillation_set` output) with TRL + LoRA. Before starting, check whether Unsloth and Liger Kernel support the `qwen3_5` architecture (their docs or release notes); use one that does, or plain TRL + PEFT with gradient checkpointing. Record the choice in `docs/decisions.md`. Stop the teacher server while training.
+  Proof: holdout accuracy above the base student; numbers in `research.md`. Depends: T004 (traces), T010.
 - [ ] T012 [US3] Top-k (32) teacher logit storage and a distillation loss; fall back to sequence-level if tokenizers differ.
   Proof: loss decreases on a tiny run; storage size per 1M tokens recorded.
 - [ ] T013 [US3] GRPO with `rlcr.rlcr_reward` via TRL, plus the learnable-problem filter and dynamic sampling from `rlcr.py`.
@@ -64,7 +64,7 @@ description: "Tasks for real models on one GPU"
 
 **Independent Test**: spec 003's verdict, then HIKMAT days on real problems vs teacher-only.
 
-- [ ] T015a [US4] **Kill test first**: run spec 003 (`python -m mycelium.cli killtest --url …`, see `specs/003-insight-kill-test/quickstart.md`) with the real student.
+- [ ] T015a [US4] **Kill test first**: spec 003 T010b (`python -m mycelium.cli killtest --url …`, see `specs/003-insight-kill-test/quickstart.md`) with the trained student. A first reading with the untrained student (spec 003 T010a) runs much earlier.
   Proof: verdict recorded in `docs/decisions.md`. `kill` stops T015–T017; `inconclusive` means run more first.
 - [ ] T015 [US4] Keys from mean-pooled middle-layer hidden states; script to pick the layer by same-family recall on the eval suites.
   Proof: chosen layer and recall table in `research.md`. Depends: T015a = `pays`.

@@ -29,12 +29,13 @@ into the same interfaces next.
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"            # add ",faiss" for the FAISS indexes
-pytest -q                          # 96 tests, ~60 s
+pytest -q                          # 98 tests, ~60 s
 python -m mycelium.cli e2e --out report.json
 python -m mycelium.cli e2e --index binary-ivf
 python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
 python -m mycelium.cli insights --suite real   # does memory pay? sweep of hint assumptions (~4 min)
 python -m mycelium.cli killtest --mock         # spec 003 harness check (~10 s)
+python -m mycelium.cli doctor                  # what this machine can run
 ```
 
 ### With a real teacher
@@ -188,11 +189,14 @@ Which index to use: `numpy` up to ~100k records; `binary-ivf` beyond that. Its 8
 - Memory has a hard byte budget. The least valuable records are evicted first, and stale quarantine entries expire.
 - Insights carry the model version and are ignored by a different version.
 
-## Not done yet (next steps on a GPU machine)
+## Next steps
 
-- A real student behind `TrainableBackend`: SFT, logit distillation and GRPO with the RLCR reward via TRL + Unsloth (or Liger), then GSQ + RCO quantization. The teacher side already works through `OpenAICompatBackend`.
-- HIKMAT keys from real hidden states (middle-layer pooling) instead of synthetic features.
-- A real code sandbox. `judge_code` only isolates the process.
-- Real eval suites (GSM8K, MATH-500, HumanEval/MBPP, factual QA with unanswerables) and a private holdout.
+Every next task, in order, is in [`specs/ROADMAP.md`](specs/ROADMAP.md), with markers for what needs the GPU PC (`[GPU]`) and what needs the owner's decision (`[OWNER]`). On a fresh clone, run `python -m mycelium.cli doctor` to see which tasks this machine can run. In short:
+
+1. Teacher up on the 3090, first kill-test reading with the untrained student (`Qwen3.5-2B-Q8_0.gguf`).
+2. Trustworthy evals: MATH-500, HumanEval+/MBPP+, SimpleQA, TruthfulQA, a code sandbox, a private holdout, a second JUDGE.
+3. Real student (`Qwen/Qwen3.5-2B`): SFT, logit distillation, GRPO with the RLCR reward.
+4. Decisive kill test with the trained student; hidden-state HIKMAT keys only if it says `pays`.
+5. GSQ + RCO student builds, then phones (spec 004) and the insight hub (spec 005).
 
 Intended license: AGPL-3.0-or-later (full license text to be added with the open-source launch).

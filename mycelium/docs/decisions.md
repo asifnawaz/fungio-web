@@ -9,6 +9,8 @@ The "why" behind MYCELIUM, distilled from the design discussions with the owner 
 - **Free infrastructure.** Hugging Face for weights and packs, GitHub for code and CI, static site hosting for the web, volunteer GPUs for verification. No paid servers.
 
 ## Technical decisions
+- **Student = `Qwen/Qwen3.5-2B`** (2026-10-24). Qwen3.8 has no small model (only 27B and larger on the Qwen org). Qwen3.5-2B is Apache-2.0, has the teacher's architecture family (`qwen3_5`) and vocab size (248,320) with `vocab.json`/`merges.txt` of identical byte sizes, so logit distillation is likely possible (token ids checked in spec 002 T010). Fallbacks: Qwen3.5-4B if too weak, Qwen3.5-0.8B for phones.
+- **One ordered queue** (`specs/ROADMAP.md`) with `[CPU]`/`[GPU]`/`[OWNER]`/`[GATE]` markers and a `doctor` command, so agents on a fresh clone pick the next task instead of guessing.
 - **Spec Kit templates are vendored** in `.specify/templates/` (github/spec-kit 1.2.4.dev0, MIT, license file included). New specs follow them; spec 001 keeps its original shape with a "Convergence" section; spec 002 was restructured to the template without changing its content or task IDs.
 - **Kill tests are pre-registered.** The HIKMAT kill test's verdict rule (spec 003 `research.md`, `killtest.verdict`) was written before any real data. Changing it needs a dated entry here and a fresh run.
 - **Teacher = Qwen3.8-27B GSQ-RCO `IQ3_S` GGUF (11.8 GB) on llama.cpp.** Task-lossless per its card and leaves VRAM on a 3090 for the student. DeepSeek-V4.1-Flash GSQ-RCO (231–266 GB with Engram tables) is too slow for bulk distillation on 24 GB + 32 GB RAM; kept as a Strata testbed.

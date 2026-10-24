@@ -13,7 +13,7 @@
 ## Requirement completeness
 
 - [x] No `[NEEDS CLARIFICATION]` markers remain
-- [x] Every functional requirement is testable (FR-001–FR-011 map to tests or to T010)
+- [x] Every functional requirement is testable (FR-001–FR-011 map to tests or to the real runs T010a/T010b)
 - [x] Success criteria are measurable; SC-003's run time is marked as an estimate
 - [x] Edge cases listed (no same-family donor, no number, no token count, floor/ceiling accuracy, server error)
 - [x] Scope is bounded: student's own solutions, P1/P2 and real retrieval are follow-ups
