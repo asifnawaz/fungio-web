@@ -2,8 +2,8 @@
 
 Records enter in quarantine and only become usable after the autopilot promotes them.
 The store has a hard byte budget; when it is full the least valuable records go first.
-Search here is brute force over decoded vectors, which is fine for tests; production
-should use an ANN index (HNSW or IVF-PQ) over the same codes.
+Search goes through a vector index: exact NumPy by default, or FAISS HNSW for millions of
+records (`index="faiss-hnsw"`).
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from mycelium.hikmat.codec import CodonCodec
+from mycelium.hikmat.index import VectorIndex, make_index
 from mycelium.types import Hint
 
 RECORD_OVERHEAD_BYTES = 32
@@ -58,13 +59,17 @@ class HikmatMemory:
         budget_bytes: int,
         policy: AdmissionPolicy | None = None,
         lookup_similarity: float = 0.75,
+        index: str = "numpy",
     ):
         self.codec = codec
         self.budget_bytes = budget_bytes
         self.policy = policy or AdmissionPolicy()
         self.lookup_similarity = lookup_similarity
+        self.index_kind = index
         self.records: dict[int, MemoryRecord] = {}
         self._vectors: dict[int, np.ndarray] = {}
+        self._index: VectorIndex = make_index(index, codec.dim)
+        self._used_bytes = 0
         self._next_id = 0
 
     @property
@@ -73,7 +78,7 @@ class HikmatMemory:
 
     @property
     def used_bytes(self) -> int:
-        return sum(r.nbytes for r in self.records.values())
+        return self._used_bytes
 
     # ---- writing ------------------------------------------------------------
 
@@ -96,8 +101,10 @@ class HikmatMemory:
             return "rejected:unsure"
         codes = self.codec.encode(key)
         vector = self.codec.decode(codes)
-        match = self._nearest(vector, statuses=("active", "quarantine"), payload=payload)
-        if match and match[1] >= self.policy.merge_similarity:
+        match = self._nearest(
+            vector, statuses=("active", "quarantine"), payload=payload, min_score=self.policy.merge_similarity
+        )
+        if match:
             match[0].support += 1
             return "merged"
         record = MemoryRecord(
@@ -111,8 +118,7 @@ class HikmatMemory:
             model_version=self.model_version,
         )
         self._next_id += 1
-        self.records[record.id] = record
-        self._vectors[record.id] = vector
+        self._insert(record, vector)
         self._enforce_budget(step)
         return "quarantined" if record.id in self.records else "evicted"
 
@@ -127,8 +133,18 @@ class HikmatMemory:
         self.records[record_id].status = "active"
 
     def reject(self, record_id: int) -> None:
-        self.records.pop(record_id, None)
+        record = self.records.pop(record_id, None)
+        if record is None:
+            return
         self._vectors.pop(record_id, None)
+        self._index.remove(record_id)
+        self._used_bytes -= record.nbytes
+
+    def _insert(self, record: MemoryRecord, vector: np.ndarray) -> None:
+        self.records[record.id] = record
+        self._vectors[record.id] = vector
+        self._index.add(record.id, vector)
+        self._used_bytes += record.nbytes
 
     @contextmanager
     def trial(self, record_id: int):
@@ -145,8 +161,8 @@ class HikmatMemory:
 
     def lookup(self, key: np.ndarray, *, step: int = 0, count: bool = True) -> Hint | None:
         vector = np.asarray(key, dtype=float)
-        match = self._nearest(vector / np.linalg.norm(vector), statuses=("active",))
-        if not match or match[1] < self.lookup_similarity:
+        match = self._nearest(vector / np.linalg.norm(vector), statuses=("active",), min_score=self.lookup_similarity)
+        if not match:
             return None
         record, similarity = match
         if count:
@@ -160,20 +176,31 @@ class HikmatMemory:
         if record_id in self.records:
             self.records[record_id].loops_saved += max(0.0, loops_saved)
 
-    def _nearest(self, vector: np.ndarray, *, statuses: tuple[str, ...], payload: str | None = None):
-        candidates = [
-            r
-            for r in self.records.values()
-            if r.status in statuses
-            and r.model_version == self.model_version
-            and (payload is None or r.payload == payload)
-        ]
-        if not candidates:
-            return None
-        matrix = np.stack([self._vectors[r.id] for r in candidates])
-        similarities = matrix @ vector
-        best = int(np.argmax(similarities))
-        return candidates[best], float(similarities[best])
+    def _nearest(
+        self, vector: np.ndarray, *, statuses: tuple[str, ...], min_score: float, payload: str | None = None
+    ) -> tuple[MemoryRecord, float] | None:
+        """Most similar record passing the filters, if its similarity reaches `min_score`.
+
+        Candidates come from the index best-first. The search widens only while the
+        candidates are still above `min_score`, so a lookup costs one index search in
+        the common case instead of a scan over every record.
+        """
+        k = 16
+        while True:
+            hits = self._index.search(vector, k)
+            for record_id, score in hits:
+                if score < min_score:
+                    return None
+                record = self.records[record_id]
+                if (
+                    record.status in statuses
+                    and record.model_version == self.model_version
+                    and (payload is None or record.payload == payload)
+                ):
+                    return record, score
+            if len(hits) < k:
+                return None
+            k *= 4
 
     # ---- housekeeping -------------------------------------------------------
 
@@ -208,7 +235,11 @@ class HikmatMemory:
 
     def restore(self, snapshot: dict) -> None:
         state = copy.deepcopy(snapshot)
-        self.records, self._vectors = state["records"], state["vectors"]
+        self.records, self._vectors = {}, {}
+        self._index = make_index(self.index_kind, self.codec.dim)
+        self._used_bytes = 0
+        for record_id, record in state["records"].items():
+            self._insert(record, state["vectors"][record_id])
         # Ids keep increasing across rollbacks so audit logs never point at two records.
         self._next_id = max(self._next_id, state["next_id"])
 

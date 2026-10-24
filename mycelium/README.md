@@ -14,7 +14,7 @@ into the same interfaces next.
 
 | Name | What it is | Code |
 |---|---|---|
-| ORACLE | Teacher model (planned: Qwen3.8-27B, 4-bit) | `models/mock.py` (`make_teacher`) |
+| ORACLE | Teacher model (planned: Qwen3.8-27B, GSQ-RCO GGUF) | `models/mock.py` (`make_teacher`), `models/openai_compat.py` (real server) |
 | SPROUT | Student model (planned: ~1.5–2B Qwen) | `models/mock.py` (`make_student`) |
 | JUDGE | Deterministic verifiers: math match, code execution, QA match | `evals/judges.py` |
 | RLCR | RL with calibration rewards (correctness − Brier) | `rlcr.py` |
@@ -28,10 +28,22 @@ into the same interfaces next.
 ```bash
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
-pip install -e ".[dev]"
-pytest -q                                   # 39 tests, ~15 s
+pip install -e ".[dev]"            # add ",faiss" for the FAISS index
+pytest -q                          # 51 tests, ~30 s
 python -m mycelium.cli e2e --out report.json
+python -m mycelium.cli e2e --index faiss-hnsw
 ```
+
+### With a real teacher
+
+Any OpenAI-compatible server works: llama.cpp's `llama-server`, vLLM, SGLang, Ollama or LM Studio. For example, on a 3090 with a GSQ-RCO GGUF of Qwen3.8-27B (check the model card for the minimum llama.cpp version):
+
+```bash
+llama-server -m <qwen3.8-27b-gsq-rco>.gguf -ngl 99 -c 32768 --port 8080
+python -m mycelium.cli e2e --teacher-url http://localhost:8080 --teacher-model qwen3.8-27b
+```
+
+The teacher must end each reply with `ANSWER:` and `CONFIDENCE:` lines (the system prompt asks for this). Its answers are cached, so router tuning replays them instead of asking again.
 
 ## What the end-to-end run does
 
@@ -66,6 +78,32 @@ Seeds 1–3 show the same pattern: from day 1 on, cost runs 35–45% below teach
 - **The router must tell the model how sure it needs to be.** If the model stops thinking at 0.85 while the router needs 0.9, the system pays for an expensive fallback every time. `answer(..., stop_at=...)` fixes that.
 - **Look up memory before reasoning, not after.** A lookup costs about a tenth of a loop.
 - **IDs must never repeat after a rollback**, or audit logs point at the wrong record.
+- **Memory has to stay fast as it grows.** The first version rebuilt its search matrix on every lookup and recounted bytes on every insert: 36 ms per lookup and quadratic inserts at 50k insights. A real vector index fixed it (numbers below).
+- **Cache the teacher.** Router tuning replays the same problems through ~100 settings. The cache cut teacher calls from 7,688 to 1,346 in the default run.
+
+## Optimization stack
+
+Libraries chosen per stage, so nothing here reinvents what already exists:
+
+| Stage | Library | Why |
+|---|---|---|
+| Teacher serving | llama.cpp `llama-server` (GGUF) on one GPU; vLLM or SGLang when batching many requests | Plugs in through `OpenAICompatBackend`. SGLang is strong on structured output and prefix caching. |
+| Teacher weights | ISTA-DASLab GSQ-RCO GGUF builds (e.g. Qwen3.8-27B) | 1–3 bit weights leave VRAM on a 24 GB card for long context and the student |
+| Giant MoE models | Strata / Maya (GPU + RAM + SSD tiers) | Later: testbed for task-aware expert prefetch |
+| Student fine-tuning (SFT, GRPO with the RLCR reward) | TRL with **either** Unsloth **or** Liger Kernel | Fused kernels cut VRAM; using both double-patches the same layers |
+| Student quantization | GSQ (post-training 1–3 bit) + RCO (per-tensor bits under an exact size budget) | Replaces the earlier ternary-training plan. RCO fits one model to each device budget (phone, laptop, PC). |
+| HIKMAT search | NumPy (exact, default) or FAISS HNSW | Measured below |
+| Faster decoding (later) | Speculative decoding (EAGLE-3 / P-EAGLE style drafts, MTP heads) in the serving engine | 2–4x on typical workloads per published reports |
+
+HIKMAT lookup speed on this machine (CPU, 64-dim keys):
+
+| Records | Before (rebuild per lookup) | NumPy index | FAISS HNSW |
+|---|---|---|---|
+| 10,000 | 6.1 ms | 0.07 ms | 0.11 ms |
+| 50,000 | 35.6 ms | — | — |
+| 100,000 | — | 0.55 ms | 0.22 ms |
+
+Inserts went from quadratic (280 s for 50k) to ~0.4 ms each at 100k.
 
 ## Design rules the code enforces
 
@@ -78,8 +116,8 @@ Seeds 1–3 show the same pattern: from day 1 on, cost runs 35–45% below teach
 
 ## Not done yet (next steps on a GPU machine)
 
-- Real backends behind `ModelBackend` / `TrainableBackend`: ORACLE via llama.cpp or vLLM, SPROUT fine-tuning via TRL/Unsloth (SFT, logit distillation, GRPO with the RLCR reward).
-- HIKMAT keys from real hidden states (middle-layer pooling) instead of synthetic features, and an ANN index (FAISS) instead of brute-force search.
+- A real student behind `TrainableBackend`: SFT, logit distillation and GRPO with the RLCR reward via TRL + Unsloth (or Liger), then GSQ + RCO quantization. The teacher side already works through `OpenAICompatBackend`.
+- HIKMAT keys from real hidden states (middle-layer pooling) instead of synthetic features.
 - A real code sandbox. `judge_code` only isolates the process.
 - Real eval suites (GSM8K, MATH-500, HumanEval/MBPP, factual QA with unanswerables) and a private holdout.
 

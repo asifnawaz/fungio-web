@@ -18,6 +18,8 @@ from mycelium.evals.harness import evaluate
 from mycelium.evals.judges import judge
 from mycelium.hikmat.codec import CodonCodec
 from mycelium.hikmat.memory import HikmatMemory
+from mycelium.models.base import ModelBackend
+from mycelium.models.cache import CachedBackend
 from mycelium.models.mock import MockModel, method_tag
 from mycelium.rlcr import learnable_problems, run_rlcr
 from mycelium.router import Thresholds, Triage, run_policy, teacher_only, tune_thresholds
@@ -39,6 +41,7 @@ class E2EConfig:
     days: int = 6
     day_per_domain: int = 40
     memory_budget_bytes: int = 64 * 1024
+    memory_index: str = "numpy"
     poison_day: int = 3
 
 
@@ -64,13 +67,15 @@ def make_student() -> MockModel:
     )
 
 
-def run_e2e(config: E2EConfig = E2EConfig()) -> dict:
+def run_e2e(config: E2EConfig = E2EConfig(), teacher: ModelBackend | None = None) -> dict:
+    """Run every stage. Pass `teacher` to use a real model server instead of the mock."""
     base = config.seed * 1000
     train = make_suite(base + 1, config.train_per_domain)
     holdout = make_suite(base + 2, config.eval_per_domain)
     tune_set, test_set = holdout[::2], holdout[1::2]
     golden = GoldenSet(make_suite(base + 3, config.eval_per_domain))
-    teacher, student = make_teacher(), make_student()
+    teacher = CachedBackend(teacher or make_teacher())
+    student = make_student()
 
     def student_eval() -> dict:
         return evaluate(lambda p: student.answer(p, max_loops=4), test_set)
@@ -100,13 +105,18 @@ def run_e2e(config: E2EConfig = E2EConfig()) -> dict:
 
     report["p4_hikmat"] = run_hikmat_days(student, teacher, thresholds, golden, config)
     report["golden_tamper_detected"] = _tamper_is_detected(golden)
+    report["teacher_calls"] = {"made": teacher.misses, "served_from_cache": teacher.hits}
     return report
 
 
 def run_hikmat_days(
-    student: MockModel, teacher: MockModel, thresholds: Thresholds, golden: GoldenSet, config: E2EConfig
+    student: MockModel, teacher: ModelBackend, thresholds: Thresholds, golden: GoldenSet, config: E2EConfig
 ) -> dict:
-    memory = HikmatMemory(CodonCodec(FEATURE_DIM, student.version), budget_bytes=config.memory_budget_bytes)
+    memory = HikmatMemory(
+        CodonCodec(FEATURE_DIM, student.version),
+        budget_bytes=config.memory_budget_bytes,
+        index=config.memory_index,
+    )
     autopilot = Autopilot(student, memory, golden)
     golden_before = autopilot.baseline["accuracy"]
     triage = Triage(student, teacher, memory, thresholds)

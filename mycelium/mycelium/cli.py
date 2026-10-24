@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 
+from mycelium.models.openai_compat import OpenAICompatBackend
 from mycelium.pipeline import E2EConfig, run_e2e
 
 
@@ -34,18 +35,27 @@ def _summary(report: dict) -> str:
         )
     lines.append("")
     lines.append(f"golden tamper detected: {report['golden_tamper_detected']}")
+    calls = report["teacher_calls"]
+    lines.append(f"teacher calls: {calls['made']} made, {calls['served_from_cache']} served from cache")
     return "\n".join(lines)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="mycelium")
     sub = parser.add_subparsers(dest="command", required=True)
-    e2e = sub.add_parser("e2e", help="run the full mock pipeline")
+    e2e = sub.add_parser("e2e", help="run the full pipeline (mock student, mock or real teacher)")
     e2e.add_argument("--seed", type=int, default=0)
     e2e.add_argument("--out", help="write the full JSON report here")
+    e2e.add_argument("--index", choices=["numpy", "faiss-hnsw"], default="numpy", help="HIKMAT vector index")
+    e2e.add_argument("--teacher-url", help="OpenAI-compatible server for the teacher, e.g. http://localhost:8080")
+    e2e.add_argument("--teacher-model", default="teacher", help="model name to send to the teacher server")
+    e2e.add_argument("--teacher-cost", type=float, default=16.0, help="teacher cost per loop relative to the student")
     args = parser.parse_args()
 
-    report = run_e2e(E2EConfig(seed=args.seed))
+    teacher = None
+    if args.teacher_url:
+        teacher = OpenAICompatBackend(args.teacher_url, args.teacher_model, cost_per_loop=args.teacher_cost)
+    report = run_e2e(E2EConfig(seed=args.seed, memory_index=args.index), teacher=teacher)
     print(_summary(report))
     if args.out:
         with open(args.out, "w") as f:
