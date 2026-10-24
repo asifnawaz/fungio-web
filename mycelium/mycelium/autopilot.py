@@ -88,11 +88,14 @@ class Autopilot:
             before = evaluate(self._solve, affected)
             with self.memory.trial(record.id):
                 after = evaluate(self._solve, affected)
-            better = (
+            no_regression = (
                 after["accuracy"] >= before["accuracy"]
                 and after["hallucination_rate"] <= before["hallucination_rate"]
                 and after["mean_loops"] <= before["mean_loops"]
             )
+            # An insight that changes nothing only takes space; it must measurably help.
+            helps = after["accuracy"] > before["accuracy"] or after["mean_loops"] < before["mean_loops"]
+            better = no_regression and helps
             if better:
                 self.memory.promote(record.id)
             else:

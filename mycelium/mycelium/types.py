@@ -24,10 +24,17 @@ class Problem:
     features: np.ndarray = field(compare=False, repr=False)
     # Answer options for mcq problems, in letter order.
     choices: tuple[str, ...] = ()
+    # Problems sharing a template are solved the same way with different numbers or names.
+    # Empty means the problem is its own template (a unique question).
+    template: str = ""
 
     @property
     def answerable(self) -> bool:
         return self.answer is not None
+
+    @property
+    def template_key(self) -> str:
+        return self.template or self.id
 
 
 @dataclass
@@ -42,8 +49,10 @@ class Answer:
 
 @dataclass
 class Hint:
-    """What HIKMAT hands the model: a remembered verified answer for a similar problem."""
+    """What HIKMAT hands the model: a remembered verified method for a similar problem."""
 
     text: str
     similarity: float
     record_id: int
+    # Template of the problem the insight was learned from, for measuring transfer.
+    source: str = ""

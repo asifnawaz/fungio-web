@@ -20,6 +20,7 @@ from mycelium.models.base import RLCRSample
 from mycelium.types import DOMAINS, MCQ_LETTERS, Answer, Hint, Problem
 
 SFT_CEILING = 0.85
+DEFAULT_FAMILY_TRANSFER = {"math": 0.25, "code": 0.25, "qa": 0.0, "mcq": 0.0}
 
 
 def method_tag(family: str) -> str:
@@ -45,10 +46,12 @@ class MockModel:
         loop_gain: float = 0.05,
         known_bonus: float = 0.15,
         hint_gain: float = 0.4,
+        misleading_penalty: float = 0.6,
         conf_noise: float = 0.06,
         stop_confidence: float = 0.85,
         family_skill: dict[str, float] | None = None,
         dunning_kruger: float = 0.0,
+        family_transfer: dict[str, float] | None = None,
     ):
         assert set(skill) == set(DOMAINS)
         self.name = name
@@ -67,6 +70,12 @@ class MockModel:
         self.loop_gain = loop_gain
         self.known_bonus = known_bonus
         self.hint_gain = hint_gain
+        # A hint for the wrong kind of problem always hurts, whatever `hint_gain` assumes.
+        self.misleading_penalty = misleading_penalty
+        # How much of a hint's benefit carries to a *different* problem of the same family.
+        # Procedures (math, code) partly transfer; facts (qa, mcq) don't: knowing one
+        # astronomy answer doesn't answer another astronomy question.
+        self.family_transfer = dict(family_transfer or DEFAULT_FAMILY_TRANSFER)
         self.conf_noise = conf_noise
         self.stop_confidence = stop_confidence
 
@@ -80,9 +89,18 @@ class MockModel:
         if problem.family in self.knowledge:
             x += self.known_bonus
         if hint is not None:
-            # A matching method helps a lot; a wrong one actively misleads.
-            x += self.hint_gain * hint.similarity * (1 if hint.text == method_tag(problem.family) else -1.5)
+            x += hint.similarity * self.hint_shift(problem, hint)
         return _sigmoid(6 * x)
+
+    def hint_shift(self, problem: Problem, hint: Hint) -> float:
+        """Skill shift per unit of similarity: the full `hint_gain` for an insight from the
+        same template, the domain's transfer fraction of it for another problem of the
+        same family, and a fixed penalty for a different family (misleading)."""
+        if hint.text != method_tag(problem.family):
+            return -self.misleading_penalty
+        if not hint.source or hint.source == problem.template_key:
+            return self.hint_gain
+        return self.hint_gain * self.family_transfer.get(problem.domain, 0.0)
 
     def _confidence(self, problem: Problem, p: float, z: float) -> float:
         if problem.answerable:

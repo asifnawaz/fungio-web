@@ -53,6 +53,11 @@ class E2EConfig:
     memory_budget_bytes: int = 64 * 1024
     memory_index: str = "numpy"
     poison_day: int = 3
+    # Assumed effect of a matching hint on the simulated student (the quantity real
+    # models must measure) and how much of it carries to other problems of the same
+    # family for math and code. None keeps the defaults in `models.mock`.
+    hint_gain: float = 0.4
+    procedural_transfer: float | None = None
 
 
 @dataclass
@@ -82,15 +87,25 @@ def make_teacher(family_skill: dict[str, float] | None = None) -> MockModel:
     )
 
 
-def make_student(family_skill: dict[str, float] | None = None, dunning_kruger: float = 0.0) -> MockModel:
+def make_student(
+    family_skill: dict[str, float] | None = None,
+    dunning_kruger: float = 0.0,
+    hint_gain: float = 0.4,
+    procedural_transfer: float | None = None,
+) -> MockModel:
+    transfer = None
+    if procedural_transfer is not None:
+        transfer = {"math": procedural_transfer, "code": procedural_transfer, "qa": 0.0, "mcq": 0.0}
     return MockModel(
         "sprout",
         {"math": 0.45, "code": 0.40, "qa": 0.35, "mcq": 0.45},
         overconfidence=0.2,
         awareness=0.1,
         cost_per_loop=1.0,
+        hint_gain=hint_gain,
         family_skill=family_skill,
         dunning_kruger=dunning_kruger,
+        family_transfer=transfer,
     )
 
 
@@ -179,7 +194,12 @@ def run_e2e(config: E2EConfig = E2EConfig(), teacher: ModelBackend | None = None
     train, tune_set, test_set = suite.train, suite.tune, suite.test
     golden = GoldenSet(suite.golden)
     teacher = CachedBackend(teacher or make_teacher(suite.teacher_family_skill))
-    student = make_student(suite.student_family_skill, dunning_kruger=0.8 if config.scenario == "complex" else 0.0)
+    student = make_student(
+        suite.student_family_skill,
+        dunning_kruger=0.8 if config.scenario == "complex" else 0.0,
+        hint_gain=config.hint_gain,
+        procedural_transfer=config.procedural_transfer,
+    )
 
     def student_eval() -> dict:
         return evaluate(lambda p: student.answer(p, max_loops=4), test_set)
@@ -254,20 +274,29 @@ def run_hikmat_days(
     autopilot = Autopilot(student, memory, golden)
     golden_before = autopilot.baseline["accuracy"]
     triage = Triage(student, teacher, memory, thresholds)
+    # Same router without memory: the difference to `triage` is what memory itself adds.
+    no_memory = Triage(student, teacher, None, thresholds)
     days, step = [], 0
+    seen_templates: set[str] = set()
     for day in range(config.days):
         problems = suite.day_problems(day)
         attacks = _inject_poison(memory, step, suite) if day == config.poison_day else {}
         proposals: Counter = Counter()
+        retrieval: Counter = Counter()
+        repeats = 0
         results = []
         for problem in problems:
             step += 1
+            repeats += problem.template_key in seen_templates
+            seen_templates.add(problem.template_key)
             result = triage.solve(problem, step=step)
             correct = judge(problem, result.answer)
             results.append((result, correct))
             if result.hint_id is not None and result.hint_id in memory.records:
-                saved = memory.records[result.hint_id].loops_spent - result.answer.loops
-                memory.credit(result.hint_id, saved)
+                record = memory.records[result.hint_id]
+                memory.credit(result.hint_id, record.loops_spent - result.answer.loops)
+                retrieval[_match_kind(record, problem)] += 1
+                retrieval["correct_after_hint"] += correct
             # Escalations and long thinking become memories, so next time they are cheap.
             if result.action in ("think", "escalate") and not result.answer.abstained:
                 outcome = memory.propose(
@@ -279,12 +308,14 @@ def run_hikmat_days(
                     # Facts and multiple choice need two confirmations; math and code are machine-checked.
                     verify_level=2 if problem.domain in ("qa", "mcq") else 1,
                     step=step,
+                    source=problem.template_key,
                 )
                 proposals[outcome] += 1
         decisions = autopilot.review(problems, step)
         health = autopilot.check_health(step)
         actions = Counter(r.action for r, _ in results)
         reference = run_policy(lambda p: teacher_only(teacher, p), problems)
+        ablation = run_policy(no_memory.solve, problems)
         days.append(
             {
                 "day": day,
@@ -292,7 +323,13 @@ def run_hikmat_days(
                 "mean_cost": float(np.mean([r.cost for r, _ in results])),
                 "teacher_only_accuracy": reference["accuracy"],
                 "teacher_only_cost": reference["mean_cost"],
+                "no_memory_accuracy": ablation["accuracy"],
+                "no_memory_cost": ablation["mean_cost"],
                 "actions": {a: n / len(results) for a, n in sorted(actions.items())},
+                # Share of today's problems whose template was seen before (today or earlier).
+                "repeat_rate": repeats / len(problems),
+                # What retrieved hints matched: same template, same family only, or another family.
+                "retrieval": dict(retrieval),
                 "proposals": dict(proposals),
                 "decisions": dict(Counter(d["decision"] for d in decisions)),
                 "attacks": attacks,
@@ -302,6 +339,14 @@ def run_hikmat_days(
             }
         )
     return {"golden_accuracy_without_memory": golden_before, "days": days, "events": autopilot.events}
+
+
+def _match_kind(record, problem: Problem) -> str:
+    if record.payload != method_tag(problem.family):
+        return "other_family"
+    if not record.source or record.source == problem.template_key:
+        return "same_template"
+    return "same_family_only"
 
 
 def _inject_poison(memory: HikmatMemory, step: int, suite: Suite) -> dict:

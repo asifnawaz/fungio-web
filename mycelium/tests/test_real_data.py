@@ -1,5 +1,7 @@
 """Real GSM8K + MMLU samples: loading, multiple-choice judging, and the full pipeline on them."""
 
+import json
+
 import numpy as np
 import pytest
 
@@ -83,3 +85,18 @@ def test_real_complex_scenario_safety_gates(complex_report):
     assert reviews[poison_day["attacks"]["quarantined_poison"]] == "rejected"
     assert poison_day["rolled_back"]
     assert complex_report["golden_tamper_detected"]
+
+
+def test_gsm_symbolic_rows_keep_their_template(tmp_path):
+    # Shape written by scripts/fetch_datasets.py --gsm-symbolic (the data itself is never committed).
+    path = tmp_path / "gsm_symbolic_main.jsonl"
+    rows = [
+        {"id": f"gsm-symbolic-main-7-{i}", "question": f"Ann has {i} apples...", "answer": str(i), "steps": 2,
+         "template": "gsm-symbolic-main-7"}
+        for i in range(3)
+    ]
+    path.write_text("\n".join(json.dumps(r) for r in rows))
+    problems = load_gsm8k(path)
+    assert {p.template_key for p in problems} == {"gsm-symbolic-main-7"}
+    # Plain GSM8K questions are unique, so each is its own template.
+    assert len({p.template_key for p in load_gsm8k()}) == len(load_gsm8k())

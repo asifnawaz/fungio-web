@@ -36,10 +36,12 @@ class MemoryRecord:
     support: int = 1
     hits: int = 0
     loops_saved: float = 0.0
+    # Template of the problem this was learned from (for measuring transfer).
+    source: str = ""
 
     @property
     def nbytes(self) -> int:
-        return len(self.codes) + len(self.payload.encode()) + RECORD_OVERHEAD_BYTES
+        return len(self.codes) + len(self.payload.encode()) + len(self.source.encode()) + RECORD_OVERHEAD_BYTES
 
 
 @dataclass
@@ -92,6 +94,7 @@ class HikmatMemory:
         loops_spent: int,
         verify_level: int,
         step: int,
+        source: str = "",
     ) -> str:
         if not verified:
             return "rejected:unverified"
@@ -101,8 +104,11 @@ class HikmatMemory:
             return "rejected:unsure"
         codes = self.codec.encode(key)
         vector = self.codec.decode(codes)
+        # Merge only with the same insight from the same source: different questions of one
+        # subject stay separate, so a fact learned from one isn't credited to another.
         match = self._nearest(
-            vector, statuses=("active", "quarantine"), payload=payload, min_score=self.policy.merge_similarity
+            vector, statuses=("active", "quarantine"), payload=payload, source=source,
+            min_score=self.policy.merge_similarity,
         )
         if match:
             match[0].support += 1
@@ -116,6 +122,7 @@ class HikmatMemory:
             loops_spent=loops_spent,
             created_step=step,
             model_version=self.model_version,
+            source=source,
         )
         self._next_id += 1
         self._insert(record, vector)
@@ -167,7 +174,7 @@ class HikmatMemory:
         record, similarity = match
         if count:
             record.hits += 1
-        return Hint(text=record.payload, similarity=similarity, record_id=record.id)
+        return Hint(text=record.payload, similarity=similarity, record_id=record.id, source=record.source)
 
     def vector(self, record_id: int) -> np.ndarray:
         return self._vectors[record_id]
@@ -177,7 +184,13 @@ class HikmatMemory:
             self.records[record_id].loops_saved += max(0.0, loops_saved)
 
     def _nearest(
-        self, vector: np.ndarray, *, statuses: tuple[str, ...], min_score: float, payload: str | None = None
+        self,
+        vector: np.ndarray,
+        *,
+        statuses: tuple[str, ...],
+        min_score: float,
+        payload: str | None = None,
+        source: str | None = None,
     ) -> tuple[MemoryRecord, float] | None:
         """Most similar record passing the filters, if its similarity reaches `min_score`.
 
@@ -196,6 +209,7 @@ class HikmatMemory:
                     record.status in statuses
                     and record.model_version == self.model_version
                     and (payload is None or record.payload == payload)
+                    and (source is None or record.source == source)
                 ):
                     return record, score
             if len(hits) < k:

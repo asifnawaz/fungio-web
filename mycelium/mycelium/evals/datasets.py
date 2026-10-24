@@ -204,6 +204,7 @@ def make_suite(seed: int, per_domain: int, families: dict[str, list[str]] | None
                 answer=str(value),
                 difficulty=float(np.clip(MATH_FAMILIES[family] + rng.normal(0, 0.05), 0, 1)),
                 family=f"math:{family}",
+                template=f"math:{family}",  # same procedure, new numbers
                 features=problem_features(f"math:{family}", rng),
             )
         )
@@ -219,6 +220,7 @@ def make_suite(seed: int, per_domain: int, families: dict[str, list[str]] | None
                 answer=task.tests(rng),
                 difficulty=float(np.clip(task.difficulty + rng.normal(0, 0.05), 0, 1)),
                 family=f"code:{family}",
+                template=f"code:{family}",  # same function, new test values
                 features=problem_features(f"code:{family}", rng),
             )
         )

@@ -89,6 +89,8 @@ def load_gsm8k(path: Path | None = None) -> list[Problem]:
                 difficulty=float(np.clip(0.15 + 0.1 * int(row["steps"]), 0.0, 0.95)),
                 family=family,
                 features=real_features(family, row["question"]),
+                # GSM-Symbolic rows carry the template they were generated from; GSM8K rows are unique.
+                template=row.get("template", ""),
             )
         )
     return problems

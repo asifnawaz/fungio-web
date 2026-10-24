@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 
+from mycelium import insights
 from mycelium.bench import benchmark, format_rows
 from mycelium.models.openai_compat import OpenAICompatBackend
 from mycelium.pipeline import E2EConfig, run_e2e
@@ -71,10 +72,29 @@ def main() -> None:
     sim.add_argument("--port", type=int, default=8080)
     sim.add_argument("--accuracy", type=float, default=0.93)
     sim.add_argument("--latency", type=float, default=0.0, help="seconds to wait per request")
+    ins = sub.add_parser("insights", help="sweep hint strength and transfer; report what memory adds")
+    ins.add_argument("--suite", choices=["synthetic", "real"], default="synthetic")
+    ins.add_argument("--scenario", choices=["basic", "complex"], default="basic")
+    ins.add_argument("--seed", type=int, default=0)
+    ins.add_argument("--gain", type=float, action="append", help="hint_gain values (repeat; default: a grid)")
+    ins.add_argument("--transfer", type=float, action="append", help="procedural_transfer values (repeat)")
+    ins.add_argument("--out", help="write the rows as JSON here")
     args = parser.parse_args()
 
     if args.command == "bench":
         print(format_rows(benchmark(args.n, args.queries, kinds=args.index), args.n))
+        return
+    if args.command == "insights":
+        base = E2EConfig(seed=args.seed, suite=args.suite, scenario=args.scenario)
+        rows = insights.sweep(
+            base,
+            gains=tuple(args.gain or insights.DEFAULT_GAINS),
+            transfers=tuple(args.transfer or insights.DEFAULT_TRANSFERS),
+        )
+        print(insights.format_rows(rows))
+        if args.out:
+            with open(args.out, "w") as f:
+                json.dump(rows, f, indent=2)
         return
     if args.command == "sim-teacher":
         server = make_server(port=args.port, config=SimConfig(accuracy=args.accuracy, latency_s=args.latency))

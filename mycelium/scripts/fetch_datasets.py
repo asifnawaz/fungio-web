@@ -7,6 +7,12 @@ Run on a machine that can reach Hugging Face (not needed for tests):
 
 The output files can be loaded with `mycelium.evals.real.load_gsm8k(path)` and
 `load_mmlu([paths])`. Full datasets are not committed; only the small samples are.
+
+`--gsm-symbolic` also downloads apple/GSM-Symbolic: 100 GSM8K questions turned into
+templates, 50 variants each (same reasoning, new names and numbers). That is the right
+data for measuring whether an insight learned on one variant helps on the others. Its
+license is CC-BY-NC-ND-4.0: fine for local research, but never commit the files or
+derived rows to this repo (`data/full/` is gitignored).
 """
 
 from __future__ import annotations
@@ -38,6 +44,20 @@ def gsm8k_rows(split: str):
         }
 
 
+def gsm_symbolic_rows(config: str = "main"):
+    from datasets import load_dataset
+
+    for row in load_dataset("apple/GSM-Symbolic", config, split="test"):
+        solution, final = row["answer"].split("####")
+        yield {
+            "id": f"gsm-symbolic-{config}-{row['id']}-{row['instance']}",
+            "question": row["question"],
+            "answer": re.sub(r",", "", final.strip()),
+            "steps": max(1, solution.count("<<") or len([line for line in solution.splitlines() if line.strip()])),
+            "template": f"gsm-symbolic-{config}-{row['id']}",
+        }
+
+
 def mmlu_rows(subject: str, split: str):
     from datasets import load_dataset
 
@@ -66,11 +86,14 @@ def main() -> None:
     parser.add_argument("--out", default="data/full")
     parser.add_argument("--split", default="test")
     parser.add_argument("--subjects", nargs="*", default=SUBJECTS)
+    parser.add_argument("--gsm-symbolic", action="store_true", help="also fetch GSM-Symbolic (CC-BY-NC-ND, local only)")
     args = parser.parse_args()
     out = Path(args.out)
     print("gsm8k", write(out / f"gsm8k_{args.split}.jsonl", gsm8k_rows(args.split)))
     for subject in args.subjects:
         print(subject, write(out / f"mmlu_{subject}.jsonl", mmlu_rows(subject, args.split)))
+    if args.gsm_symbolic:
+        print("gsm-symbolic", write(out / "gsm_symbolic_main.jsonl", gsm_symbolic_rows("main")))
 
 
 if __name__ == "__main__":
