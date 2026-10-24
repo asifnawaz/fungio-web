@@ -136,7 +136,7 @@ What this shows: useless and harmful insights are rejected (that is what the aut
 - **Look up memory before reasoning, not after.** A lookup costs about a tenth of a loop.
 - **IDs must never repeat after a rollback**, or audit logs point at the wrong record.
 - **Memory has to stay fast as it grows.** The first version rebuilt its search matrix on every lookup and recounted bytes on every insert: 36 ms per lookup and quadratic inserts at 50k insights. A real vector index fixed it (numbers below).
-- **Cache the teacher.** Router tuning replays the same problems through ~100 settings. The cache cut teacher calls from 7,688 to 1,346 in the default run.
+- **Cache the teacher.** Router tuning replays the same problems through ~100 settings. The cache cut teacher calls from 8,433 to 1,346 in the default run (the no-memory comparison added more replays).
 
 ## Optimization stack
 

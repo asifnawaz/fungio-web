@@ -26,7 +26,7 @@ Facts below were read from the model cards on Hugging Face (2026-10-24) unless m
 
 ## Measured on the CPU container (spec 001)
 - HIKMAT lookups at 1M keys: numpy 9.4 ms, faiss-hnsw 0.13 ms (98.0% right family), binary-ivf 0.12 ms (99.3%).
-- Teacher cache: 7,688 → 1,346 calls per full run.
+- Teacher cache: 8,433 → 1,346 calls per full run (`python -m mycelium.cli e2e`, seed 0).
 - The simulated teacher is right ~93% of the time per unique prompt. Identical prompts get identical answers (as at temperature 0), so a whole code family can be wrong together.
 
 ## Open questions
