@@ -37,10 +37,10 @@ description: "Tasks for the HIKMAT kill test on GSM-Symbolic"
 - [x] T007 [US1] Analysis: paired differences, bootstrap over templates, verdict, text report (`mycelium/killtest.py: analyze, verdict, format_report`)
 - [x] T008 [US1] CLI subcommand `killtest` with `--url/--mock`, `--api-key-env`, sizes, `--out` (`mycelium/cli.py`)
 - [x] T009 [US1] Report contract and a test that the report matches it (`contracts/report.schema.json`, `tests/test_killtest.py`)
-- [ ] T010a [US1] **First reading** with the untrained student, before any training: `hf download unsloth/Qwen3.5-2B-GGUF Qwen3.5-2B-Q8_0.gguf --local-dir models`, `llama-server -m models/Qwen3.5-2B-Q8_0.gguf -ngl 99 -c 8192 --port 8081`, then `python -m mycelium.cli killtest --url http://localhost:8081 --model qwen3.5-2b --templates 50 --variants 10 --trials reports/killtest-base.jsonl --out reports/killtest-base.json`.
-  Proof: report, command, model file and hardware under "Real runs" in `research.md`, labeled "base Qwen3.5-2B, untrained"; verdict in `docs/decisions.md`. Gate: `specs/ROADMAP.md` row 4.
+- [ ] T010a [US1] **First reading** with the untrained student, right after its baseline (spec 002 T001b, same server on port 8081): `python -m mycelium.cli killtest --url http://localhost:8081 --model qwen3.5-2b --templates 50 --variants 10 --trials reports/killtest-base.jsonl --out reports/killtest-base.json`.
+  Proof: report, command, model file and hardware under "Real runs" in `research.md`, labeled "base Qwen3.5-2B, untrained"; verdict in `docs/decisions.md`. Gate: `specs/ROADMAP.md` row 3.
 - [ ] T010b [US1] **Decisive run** with the trained student (after spec 002 T013), same command with its server and `--trials reports/killtest-trained.jsonl`. This is spec 002 T015a.
-  Proof: as T010a, labeled with the student's `version`. Gate: `specs/ROADMAP.md` row 15.
+  Proof: as T010a, labeled with the student's `version`. Gate: `specs/ROADMAP.md` row 16.
 
 **Checkpoint**: the verdict decides whether spec 002 T015–T016 go ahead.
 
@@ -73,7 +73,7 @@ description: "Tasks for the HIKMAT kill test on GSM-Symbolic"
 ## Dependencies & Execution Order
 
 - Setup → Foundational → US1. US2 and US3 build on US1's `run`/`analyze` but are tested independently.
-- T010a needs only spec 002 T001 and the student GGUF. T010b needs spec 002 T013. T013 needs T010b.
+- T010a needs spec 002 T001b (student server running). T010b needs spec 002 T013. T013 needs T010b.
 - T017–T019 come after a `pays` or `inconclusive` verdict; after `kill` they are dropped.
 
 ## Implementation Strategy

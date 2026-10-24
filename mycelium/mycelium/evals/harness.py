@@ -22,7 +22,8 @@ def evaluate(solver: Solver, problems: list[Problem]) -> dict:
     return {
         "n": len(problems),
         "accuracy": float(correct.mean()),
-        "accuracy_answerable": float(correct[answerable].mean()),
+        # None when every problem is unanswerable (e.g. the fictional-entity questions alone).
+        "accuracy_answerable": float(correct[answerable].mean()) if answerable.any() else None,
         "ece": metrics.expected_calibration_error(confidence, correct),
         "brier": metrics.brier_score(confidence, correct),
         "auroc": metrics.auroc(confidence, correct),

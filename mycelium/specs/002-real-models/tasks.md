@@ -18,6 +18,8 @@ description: "Tasks for real models on one GPU"
 
 - [ ] T001 [US1] Environment. Run `python -m mycelium.cli doctor --network` first; it reports OS, GPU, VRAM, free disk, and missing tools. Then: Python ≥3.10 venv, `pip install -e ".[dev,faiss]"`, `pip install -U "huggingface_hub[cli]"`, NVIDIA driver with CUDA, and llama.cpp with CUDA (Linux: build from source with CUDA enabled; Windows: the CUDA build from the llama.cpp GitHub releases page; check the release notes for the exact asset and flags, don't guess). Need about 40 GB free disk.
   Proof: `doctor` shows `"GPU": true`; `pytest -q` passes; `llama-server --version` prints. Write the doctor output into `research.md`.
+- [ ] T001b [US3] **Small-model baseline (P0), before the teacher.** `hf download unsloth/Qwen3.5-2B-GGUF Qwen3.5-2B-Q8_0.gguf --local-dir models`; `llama-server -m models/Qwen3.5-2B-Q8_0.gguf -ngl 99 -c 8192 --port 8081`; send one request with `curl` and read the raw reply (needs `ANSWER:` and `CONFIDENCE:` lines; if it is cut off or full of thinking text, raise `--max-tokens` or switch to non-thinking mode as the model card says); then `python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --suite real --out reports/baseline-real.json` and the same with `--suite symbolic`.
+  Proof: both tables, tokens/s, VRAM use and the share of replies with confidence exactly 0.5 in `research.md` under "Baseline: untrained Qwen3.5-2B". Every later student number is compared with this. Depends: T001.
 - [ ] T002 [US1] Download the teacher: `hf download ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf --local-dir models`.
   Proof: file present, 11.8 GB. Depends: T001.
 - [ ] T003 [US1] Serve it: `llama-server -m models/Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf -ngl 99 -c 32768 --port 8080`. Record VRAM use and tokens/s in `research.md`.
@@ -98,7 +100,7 @@ description: "Tasks for real models on one GPU"
 
 ## Dependencies & Execution Order
 
-- Setup (T001–T003) → Foundational (T006–T009) → US1 (T004–T005).
+- T001 → T001b (small-model baseline) → spec 003 T010a → teacher (T002–T003) → Foundational (T006–T009) → US1 (T004–T005).
 - US3 needs US1 (teacher traces). US4 needs a real student (T010) for T015a, and T015a = `pays` for T015–T016.
 - US5 needs US3. US6 can start after US1 but only matters after US3.
 - Phase 8 is independent; T023 needs the owner's approval.

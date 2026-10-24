@@ -25,7 +25,7 @@ The project is free and open source, and will stay that way (intended license: A
 - **Harness done, real run pending (spec 003):** the HIKMAT kill test on GSM-Symbolic (`python -m mycelium.cli killtest`). Decision rules are pre-registered in `specs/003-insight-kill-test/research.md`; don't change them after seeing a real result.
 - **Next (spec 002):** real models on the owner's GPU PC. See `specs/002-real-models/tasks.md` and pick the first unchecked task. Once a real student runs, T015a (= spec 003's real run) comes before any other HIKMAT work.
 - **Later (drafts, blocked):** spec 004 (phones and laptops), spec 005 (insight-sharing hub). Don't build them before their gates in `specs/ROADMAP.md`.
-- Tests: 98, about 60 s on 4 CPU cores.
+- Tests: 99, about 60 s on 4 CPU cores.
 - **Research track (not scheduled):** see `docs/decisions.md` → "Research track".
 
 ## Layout
@@ -52,6 +52,7 @@ mycelium/
     insights.py             sweep of the mock's hint assumptions vs a no-memory router
     killtest.py             spec 003: does a stored verified method help a real model?
     doctor.py               what this machine can run (GPU, VRAM, disk, tools)
+    baseline.py             P0 on real hardware: one model alone on a real suite's holdout
     bench.py cli.py
   scripts/fetch_datasets.py full GSM8K/MMLU download (needs Hugging Face access)
   tests/                    pytest, one file per module + end-to-end
@@ -73,6 +74,7 @@ python -m mycelium.cli e2e --teacher-url http://localhost:8080 --teacher-model s
 python -m mycelium.cli bench --n 1000000            # HIKMAT index speeds
 python -m mycelium.cli insights --suite symbolic    # does memory pay, under which hint assumptions
 python -m mycelium.cli killtest --mock              # spec 003 harness check; real run: --url http://localhost:8081
+python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b   # P0 on the PC: small model alone, first
 ```
 
 Real teacher on the GPU PC: see README → "With a real teacher".

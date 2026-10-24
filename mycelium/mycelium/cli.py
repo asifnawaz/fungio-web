@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from mycelium import doctor, insights, killtest
+from mycelium import baseline, doctor, insights, killtest
 from mycelium.bench import benchmark, format_rows
 from mycelium.models.openai_compat import OpenAICompatBackend
 from mycelium.pipeline import E2EConfig, run_e2e
@@ -93,12 +93,30 @@ def main() -> None:
     kt.add_argument("--seed", type=int, default=0)
     kt.add_argument("--trials", help="append trials here as JSON lines; a rerun resumes from it")
     kt.add_argument("--out", help="write the analysis as JSON here")
+    base = sub.add_parser("baseline", help="P0 on real hardware: measure one model alone on a real suite's holdout")
+    base.add_argument("--url", required=True, help="OpenAI-compatible server of the model to measure")
+    base.add_argument("--model", default="student", help="model name to send to the server")
+    base.add_argument("--api-key-env", help="environment variable holding the server's API key")
+    base.add_argument("--suite", choices=["real", "symbolic"], default="real")
+    base.add_argument("--max-tokens", type=int, default=2048)
+    base.add_argument("--seed", type=int, default=0)
+    base.add_argument("--out", help="write the report as JSON here")
     doc = sub.add_parser("doctor", help="what this machine can run ([CPU] / [GPU] roadmap tasks)")
     doc.add_argument("--network", action="store_true", help="also check that huggingface.co is reachable")
     args = parser.parse_args()
 
     if args.command == "bench":
         print(format_rows(benchmark(args.n, args.queries, kinds=args.index), args.n))
+        return
+    if args.command == "baseline":
+        api_key = os.environ.get(args.api_key_env) if args.api_key_env else None
+        if args.api_key_env and not api_key:
+            parser.error(f"environment variable {args.api_key_env} is not set")
+        backend = OpenAICompatBackend(args.url, args.model, tokens_per_loop=args.max_tokens, api_key=api_key)
+        report = baseline.run_baseline(backend, E2EConfig(seed=args.seed, suite=args.suite))
+        print(baseline.format_baseline(report))
+        if args.out:
+            _write_json(args.out, report)
         return
     if args.command == "doctor":
         report = doctor.check(network=args.network)
@@ -117,8 +135,7 @@ def main() -> None:
         )
         print(insights.format_rows(rows))
         if args.out:
-            with open(args.out, "w") as f:
-                json.dump(rows, f, indent=2)
+            _write_json(args.out, rows)
         return
     if args.command == "sim-teacher":
         server = make_server(port=args.port, config=SimConfig(accuracy=args.accuracy, latency_s=args.latency))
@@ -143,8 +160,18 @@ def main() -> None:
     report = run_e2e(config, teacher=teacher)
     print(_summary(report))
     if args.out:
-        with open(args.out, "w") as f:
-            json.dump(report, f, indent=2, default=str)
+        _write_json(args.out, report)
+
+
+def _ensure_parent(path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _write_json(path: str, data) -> None:
+    """Write a report, creating its folder (e.g. `reports/`) if needed."""
+    with open(_ensure_parent(Path(path)), "w") as f:
+        json.dump(data, f, indent=2, default=str)
 
 
 def _killtest(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
@@ -177,14 +204,13 @@ def _killtest(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None
         # One "loop" = max_tokens for the HTTP backend, so max_loops=1 caps the reply length.
         max_loops=8 if args.mock else 1,
         seed=args.seed,
-        trials_path=Path(args.trials) if args.trials else None,
+        trials_path=_ensure_parent(Path(args.trials)) if args.trials else None,
         on_trial=progress,
     )
     report = killtest.analyze(trials, seed=args.seed)
     print(killtest.format_report(report, unit))
     if args.out:
-        with open(args.out, "w") as f:
-            json.dump(report, f, indent=2)
+        _write_json(args.out, report)
 
 
 if __name__ == "__main__":
