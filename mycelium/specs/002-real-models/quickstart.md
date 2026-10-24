@@ -9,11 +9,11 @@ pytest -q                                          # must pass before anything e
 python -m mycelium.cli doctor --network               # what this PC can run
 
 # 1. Small-model baseline first (T001b): untrained student, 2 GB
-hf download unsloth/Qwen3.5-2B-GGUF Qwen3.5-2B-Q8_0.gguf --local-dir models
-llama-server -m models/Qwen3.5-2B-Q8_0.gguf -ngl 99 -c 8192 --port 8081
-python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --suite real --out reports/baseline-real.json
-python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --suite symbolic --out reports/baseline-symbolic.json
-python -m mycelium.cli killtest --url http://localhost:8081 --model qwen3.5-2b \
+hf download unsloth/Qwen3.5-2B-MTP-GGUF Qwen3.5-2B-Q8_0.gguf --local-dir models
+llama-server -m models/Qwen3.5-2B-Q8_0.gguf -ngl 99 -c 16384 -np 4 --reasoning off --spec-type draft-mtp --port 8081
+python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --suite real --workers 4 --out reports/baseline-real.json
+python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --suite symbolic --workers 4 --out reports/baseline-symbolic.json
+python -m mycelium.cli killtest --url http://localhost:8081 --model qwen3.5-2b --workers 4 \
     --trials reports/killtest-base.jsonl --out reports/killtest-base.json   # spec 003 T010a
 
 # 2. Teacher (T002-T003)

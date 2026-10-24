@@ -107,3 +107,9 @@ def test_report_matches_its_contract():
     assert set(schema["properties"]["mock_equivalents"]["required"]) <= set(report["mock_equivalents"])
     assert report["verdict"] in schema["properties"]["verdict"]["enum"]
     json.dumps(report)  # serializable as written by --out
+
+
+def test_parallel_workers_give_the_same_trials():
+    serial = killtest.run(_mock(gain=0.4), templates=[0, 1, 2], variants=3, payload=killtest.tag_payload)
+    parallel = killtest.run(_mock(gain=0.4), templates=[0, 1, 2], variants=3, payload=killtest.tag_payload, workers=4)
+    assert parallel == serial

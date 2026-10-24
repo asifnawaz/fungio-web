@@ -9,27 +9,29 @@ these numbers, so they come first.
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from mycelium.evals.harness import evaluate
 from mycelium.models.base import ModelBackend
 from mycelium.models.openai_compat import DEFAULT_CONFIDENCE
 from mycelium.pipeline import E2EConfig, build_real_suite
-from mycelium.types import Answer, Problem
+from mycelium.types import Answer
 
 
-def run_baseline(backend: ModelBackend, config: E2EConfig, *, max_loops: int = 1) -> dict:
-    """Evaluate `backend` on the suite's holdout (tune + test), never on the golden set."""
+def run_baseline(backend: ModelBackend, config: E2EConfig, *, max_loops: int = 1, workers: int = 1) -> dict:
+    """Evaluate `backend` on the suite's holdout (tune + test), never on the golden set.
+
+    `workers` > 1 sends that many requests at once; a llama-server with as many slots
+    (`-np`) batches them, which on a CPU raises total tokens/s a lot.
+    """
     suite = build_real_suite(config)
     holdout = suite.tune + suite.test
-    answers: dict[str, Answer] = {}
-
-    def solve(problem: Problem) -> Answer:
-        answers[problem.id] = backend.answer(problem, max_loops=max_loops)
-        return answers[problem.id]
-
     start = time.perf_counter()
-    overall = evaluate(solve, holdout)
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = list(pool.map(lambda p: backend.answer(p, max_loops=max_loops), holdout))
     seconds = time.perf_counter() - start
+    answers: dict[str, Answer] = {p.id: a for p, a in zip(holdout, results, strict=True)}
+    overall = evaluate(lambda p: answers[p.id], holdout)
     by_domain = {}
     for domain in sorted({p.domain for p in holdout}):
         subset = [p for p in holdout if p.domain == domain]
@@ -46,6 +48,7 @@ def run_baseline(backend: ModelBackend, config: E2EConfig, *, max_loops: int = 1
         "seconds": seconds,
         "tokens": tokens,
         "tokens_per_second": tokens / seconds if seconds and tokens else None,
+        "workers": workers,
     }
 
 
@@ -58,7 +61,7 @@ def format_baseline(report: dict) -> str:
         lines.append(
             f"{name:<8} {m['n']:>4} {m['accuracy']:>6.3f} {m['ece']:>6.3f} {m['hallucination_rate']:>7.3f} {m['abstain_rate']:>8.3f}"
         )
-    speed = "n/a" if report["tokens_per_second"] is None else f"{report['tokens_per_second']:.1f} tokens/s"
+    speed = "n/a" if report["tokens_per_second"] is None else f"{report['tokens_per_second']:.1f} tokens/s total"
     lines.append(f"time {report['seconds']:.0f} s, {speed}; confidence exactly 0.5 (format failure?) "
                  f"{report['default_confidence_share']:.1%}")
     return "\n".join(lines)

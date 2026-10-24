@@ -76,7 +76,7 @@ python -m mycelium.cli e2e --teacher-url http://localhost:8080 --teacher-model s
 python -m mycelium.cli bench --n 1000000            # HIKMAT index speeds
 python -m mycelium.cli insights --suite symbolic    # does memory pay, under which hint assumptions
 python -m mycelium.cli killtest --mock              # spec 003 harness check; real run: --url http://localhost:8081
-python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b   # P0 on the PC: small model alone, first
+python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --workers 4   # P0 on the PC: small model alone, first
 python -m mycelium.cli rsi                          # spec 006 RSI loop on the mock
 ```
 

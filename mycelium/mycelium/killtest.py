@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import functools
 import json
+from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -101,9 +102,11 @@ def run(
     conditions: tuple[str, ...] = CONDITIONS,
     trials_path: Path | None = None,
     on_trial: Callable[[Trial], None] | None = None,
+    workers: int = 1,
 ) -> list[Trial]:
     """Solve every (target, condition) pair once. With `trials_path`, finished trials are
-    appended as JSON lines and skipped on a rerun, so a long GPU run can resume."""
+    appended as JSON lines and skipped on a rerun, so a long GPU run can resume.
+    `workers` > 1 sends that many requests at once (match the server's `-np` slots)."""
     items = load_items()
     done: dict[tuple[int, int, str], Trial] = {}
     if trials_path is not None and trials_path.exists():
@@ -111,43 +114,48 @@ def run(
             if line.strip():
                 trial = Trial(**json.loads(line))
                 done[(trial.template, trial.instance, trial.condition)] = trial
+    todo = []
+    for template in templates:
+        donors = {"same": items[(template, 0)], "other": items[(other_donor(template, items, seed), 0)]}
+        for instance in range(1, variants + 1):
+            for condition in conditions:
+                todo.append((template, instance, condition, donors))
+
+    def solve(job) -> Trial:
+        template, instance, condition, donors = job
+        target = items[(template, instance)]
+        hint, similarity = None, 1.0
+        if condition != "none":
+            donor = donors[condition]
+            similarity = float(target.problem.features @ donor.problem.features)
+            hint = Hint(text=payload(donor), similarity=similarity, record_id=-1, source=donor.problem.template_key)
+        answer = backend.answer(target.problem, max_loops=max_loops, hint=hint)
+        return Trial(
+            template=template,
+            instance=instance,
+            condition=condition,
+            correct=judge(target.problem, answer),
+            effort=float(answer.tokens or answer.loops),
+            similarity=similarity,
+        )
+
+    pending = [job for job in todo if job[:3] not in done]
+    fresh: dict[tuple[int, int, str], Trial] = {}
     out = open(trials_path, "a") if trials_path is not None else None  # noqa: SIM115
-    trials = []
     try:
-        for template in templates:
-            donors = {"same": items[(template, 0)], "other": items[(other_donor(template, items, seed), 0)]}
-            for instance in range(1, variants + 1):
-                target = items[(template, instance)]
-                for condition in conditions:
-                    key = (template, instance, condition)
-                    if key in done:
-                        trials.append(done[key])
-                        continue
-                    hint, similarity = None, 1.0
-                    if condition != "none":
-                        donor = donors[condition]
-                        similarity = float(target.problem.features @ donor.problem.features)
-                        hint = Hint(
-                            text=payload(donor), similarity=similarity, record_id=-1, source=donor.problem.template_key
-                        )
-                    answer = backend.answer(target.problem, max_loops=max_loops, hint=hint)
-                    trial = Trial(
-                        template=template,
-                        instance=instance,
-                        condition=condition,
-                        correct=judge(target.problem, answer),
-                        effort=float(answer.tokens or answer.loops),
-                        similarity=similarity,
-                    )
-                    trials.append(trial)
-                    if out is not None:
-                        out.write(json.dumps(asdict(trial)) + "\n")
-                        out.flush()
-                    if on_trial is not None:
-                        on_trial(trial)
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            # map keeps input order, so the trials file is written in a stable order.
+            for job, trial in zip(pending, pool.map(solve, pending), strict=True):
+                fresh[job[:3]] = trial
+                if out is not None:
+                    out.write(json.dumps(asdict(trial)) + "\n")
+                    out.flush()
+                if on_trial is not None:
+                    on_trial(trial)
     finally:
         if out is not None:
             out.close()
+    trials = [done.get(job[:3]) or fresh[job[:3]] for job in todo]
     return trials
 
 

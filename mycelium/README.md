@@ -36,7 +36,7 @@ python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
 python -m mycelium.cli insights --suite real   # does memory pay? sweep of hint assumptions (~4 min)
 python -m mycelium.cli killtest --mock         # spec 003 harness check (~10 s)
 python -m mycelium.cli doctor                  # what this machine can run
-python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b   # P0: one real model alone
+python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --workers 4   # P0: one real model alone
 ```
 
 ### With a real teacher

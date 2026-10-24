@@ -14,8 +14,8 @@ The mock's hints help by construction, so expect `verdict: pays` and a fitted `h
 Serve the student with any OpenAI-compatible server. With llama.cpp:
 
 ```bash
-llama-server -m models/<student>.gguf -ngl 99 -c 8192 --port 8081
-python -m mycelium.cli killtest --url http://localhost:8081 --model student \
+llama-server -m models/<student>.gguf -ngl 99 -c 16384 -np 4 --reasoning off --port 8081   # add --spec-type draft-mtp for an MTP build
+python -m mycelium.cli killtest --url http://localhost:8081 --model student --workers 4 \
     --templates 50 --variants 10 --trials killtest-trials.jsonl --out killtest-report.json
 ```
 

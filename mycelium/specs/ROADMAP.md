@@ -28,7 +28,7 @@ On a machine without a GPU, take the first open `[CPU]` row instead; `[CPU]` row
 | # | Task | Spec | Marker | Depends on | Status |
 |---|---|---|---|---|---|
 | 1 | T001 Environment on the PC (Python, CUDA, llama.cpp, `pip install -e ".[dev,faiss]"`) | 002 | `[GPU]` | — | open |
-| 2 | T001b **Small-model baseline first**: serve the untrained student `Qwen3.5-2B-Q8_0.gguf` (2 GB) and run `python -m mycelium.cli baseline` on the real and symbolic suites | 002 | `[GPU]` | 1 | open |
+| 2 | T001b **Small-model baseline first**: serve the untrained student `Qwen3.5-2B-Q8_0.gguf` from `unsloth/Qwen3.5-2B-MTP-GGUF` (2.08 GB; `--reasoning off --spec-type draft-mtp -np 4`) and run `python -m mycelium.cli baseline` on the real and symbolic suites | 002 | `[GPU]` | 1 | open |
 | 3 | T010a Kill test, first reading, on the same student server | 003 | `[GPU]` `[GATE]` | 2 | open |
 | 4 | T002 Download the teacher GGUF (11.8 GB) | 002 | `[GPU]` | 1 | open |
 | 5 | T003 Serve the teacher; record VRAM and tokens/s | 002 | `[GPU]` | 4 | open |
@@ -96,6 +96,7 @@ Why the small model comes first: it is the baseline every later number is compar
 | `Qwen/Qwen3.5-2B` | Apache-2.0. 2B parameters, 24 layers laid out as 6 × (3 Gated DeltaNet + 1 Gated Attention), hidden size 2048, vocab 248,320 (tied embeddings), 262k context. Architecture `Qwen3_5ForConditionalGeneration` (has a vision encoder; we use text only). `config.json` names transformers 4.57.0.dev0. bf16 weights 4.55 GB. |
 | Tokenizer match with the teacher | `Qwen/Qwen3.8-27B` has the same architecture family (`qwen3_5`), the same vocab size (248,320) and `vocab.json` / `merges.txt` of identical byte sizes (6,722,759 / 3,353,259). Likely identical; T010 must confirm by comparing token ids on sample text. |
 | `unsloth/Qwen3.5-2B-GGUF` | `Qwen3.5-2B-Q8_0.gguf` 2.01 GB, `Qwen3.5-2B-Q4_K_M.gguf` 1.28 GB, `Qwen3.5-2B-BF16.gguf` 3.78 GB. |
+| `unsloth/Qwen3.5-2B-MTP-GGUF` | Same quants with the MTP head kept (`Qwen3.5-2B-Q8_0.gguf` 2.08 GB). With llama.cpp `--spec-type draft-mtp`, measured fastest on CPU (see spec 002 `research.md`). Use this one. |
 | `HuggingFaceH4/MATH-500` | `test.jsonl`, 500 problems from OpenAI's PRM800K split. The card has no license field; check `github.com/openai/prm800k` before committing any rows. |
 | `evalplus/humanevalplus`, `evalplus/mbppplus` | Apache-2.0; MBPP+ has 378 test problems. |
 | `basicv8vc/SimpleQA` | MIT, mirror of `openai/simple-evals` SimpleQA (short fact questions; a 2B model should mostly abstain). |
