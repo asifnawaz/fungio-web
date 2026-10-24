@@ -27,7 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import numpy as np
 
 from mycelium.evals.datasets import CODE_TASKS, qa_world, stable_seed
-from mycelium.evals.real import load_real
+from mycelium.evals.real import load_gsm_symbolic, load_real
 from mycelium.types import MCQ_LETTERS
 
 _MATH = [
@@ -55,9 +55,9 @@ class SimConfig:
 
 @functools.lru_cache(maxsize=1)
 def _real_answer_key() -> dict[str, tuple[str, str, str, str]]:
-    """prompt -> (domain, family, right, wrong) for the committed GSM8K and MMLU samples."""
+    """prompt -> (domain, family, right, wrong) for the committed GSM8K, MMLU and GSM-Symbolic samples."""
     key = {}
-    for p in load_real():
+    for p in load_real() + load_gsm_symbolic():
         if p.domain == "mcq":
             wrong = [c for c in MCQ_LETTERS[: len(p.choices)] if c != p.answer]
             key[p.prompt] = ("mcq", p.family, p.answer, wrong[stable_seed("distractor", p.id) % len(wrong)])

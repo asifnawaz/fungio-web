@@ -19,9 +19,11 @@ The "why" behind MYCELIUM, distilled from the design discussions with the owner 
 - **Facts vs hypotheses.** Memory entries carry source, date, verification level (1 machine-checked, 2 source-checked, 3 consistency-only, 4 unverifiable) and expiry. Only levels 1–2 count as facts; level-2 facts need two independent confirmations.
 
 ## Data decisions
+- **GSM-Symbolic is committed verbatim** (all 5,000 rows, SHA-256 checked by a test) with Apple's notice. The GitHub copy is under Apple's sample-code license; the Hugging Face copy is labeled CC-BY-NC-ND-4.0. The owner confirmed the license on 2026-10-24, and the project is non-commercial. Rows keep Apple's canary string; evaluation only, never training.
 - **Real questions for quality claims.** GSM8K and MMLU (both MIT) samples are committed; ARC was skipped because CC-BY-SA would add share-alike terms to the data files. Synthetic problems remain for plumbing tests only.
 - **Samples came through the Hugging Face dataset viewer**, because this cloud container can't reach huggingface.co directly. The viewer flattens line breaks and escapes some Markdown characters; both are documented in `data/samples/ATTRIBUTION.md`. Two rows were spot-checked against the viewer independently.
 - **Stand-in HIKMAT keys for real questions** mix the subject's direction (0.92) with a hashed bag-of-words of the question (0.39), so same-subject questions are similar (> 0.75) and different subjects aren't. Real runs must replace this with hidden states (spec 002, T015).
+
 
 ## Measured negative results (keep, don't repeat)
 - **The 36–42% real-suite saving reported earlier was mostly an artifact.** The mock let an insight from one MMLU question help any question of the same subject. With facts no longer transferring, memory saves 5–11% vs teacher-only and costs 1.5–3.2 accuracy points (seed 0, days 1–5). See "Do insights work?".
@@ -47,7 +49,7 @@ The question the owner asked, answered from the code and the `insights` sweep (n
 2. **Retrieval is easy by construction.** Stand-in keys are 0.92 × subject direction + 0.39 × hashed words, so same-subject questions are always > 0.75 similar. Real hidden states may cluster worse or by surface wording (T015 picks the layer by recall).
 3. **Verification uses the answer key.** JUDGE checks against ground truth when deciding what to remember. In deployment there is no key for new questions: math can be re-checked by execution, code by tests, but facts need sources. Expect fewer, later insights.
 4. **Most hinted answers come from repeats.** Real days sample with replacement (repeat rate 0.74); 49–66% of hinted answers used an insight from the same question. Real traffic repeats less than this, unless the user base is large.
-5. **Synthetic problems can't test transfer.** All math and code problems of a family share one template, so `procedural_transfer` has no effect there. GSM-Symbolic (100 templates × 50 variants) can, but its CC-BY-NC-ND license allows only local use.
+5. **Synthetic problems can't test transfer.** All math and code problems of a family share one template, so `procedural_transfer` has no effect there. GSM-Symbolic (100 templates × 50 variants, now committed; `--suite symbolic`) can. There, at the assumed gain, memory improved cost and accuracy together.
 6. **The 16× teacher cost is an assumption.** It sets every saving. Real ratio = teacher tokens/s and price vs student; measure it on the GPU PC.
 7. **Thresholds are tuned without memory.** The router's emit threshold was tuned on the holdout with no memory, then memory changes the student's confidence. Re-tuning with memory live may recover accuracy; untested.
 

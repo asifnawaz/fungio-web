@@ -13,6 +13,7 @@ from mycelium.pipeline import E2EConfig, run_e2e
 from mycelium.sim_teacher import SimConfig, make_server
 
 INDEX_KINDS = ["numpy", "binary-ivf", "faiss-hnsw"]
+SUITES = ["synthetic", "real", "symbolic"]
 
 
 def _summary(report: dict) -> str:
@@ -53,8 +54,8 @@ def main() -> None:
     e2e.add_argument("--seed", type=int, default=0)
     e2e.add_argument("--out", help="write the full JSON report here")
     e2e.add_argument("--index", choices=INDEX_KINDS, default="numpy", help="HIKMAT vector index")
-    e2e.add_argument("--suite", choices=["synthetic", "real"], default="synthetic",
-                     help="synthetic problems, or committed GSM8K + MMLU samples")
+    e2e.add_argument("--suite", choices=SUITES, default="synthetic",
+                     help="synthetic problems, committed GSM8K + MMLU samples, or GSM-Symbolic + MMLU")
     e2e.add_argument("--scenario", choices=["basic", "complex"], default="basic",
                      help="complex: topic drift, overconfidence where weak, a teacher blind spot")
     e2e.add_argument("--teacher-url", help="OpenAI-compatible server for the teacher, e.g. http://localhost:8080")
@@ -73,7 +74,7 @@ def main() -> None:
     sim.add_argument("--accuracy", type=float, default=0.93)
     sim.add_argument("--latency", type=float, default=0.0, help="seconds to wait per request")
     ins = sub.add_parser("insights", help="sweep hint strength and transfer; report what memory adds")
-    ins.add_argument("--suite", choices=["synthetic", "real"], default="synthetic")
+    ins.add_argument("--suite", choices=SUITES, default="synthetic")
     ins.add_argument("--scenario", choices=["basic", "complex"], default="basic")
     ins.add_argument("--seed", type=int, default=0)
     ins.add_argument("--gain", type=float, action="append", help="hint_gain values (repeat; default: a grid)")

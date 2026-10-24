@@ -17,7 +17,7 @@ from mycelium.distill import distill
 from mycelium.evals.datasets import FEATURE_DIM, family_center, make_suite, stable_seed
 from mycelium.evals.harness import evaluate
 from mycelium.evals.judges import judge
-from mycelium.evals.real import load_real, split
+from mycelium.evals.real import load_gsm_symbolic, load_mmlu, load_real, split
 from mycelium.hikmat.codec import CodonCodec
 from mycelium.hikmat.memory import HikmatMemory
 from mycelium.models.base import ModelBackend
@@ -40,6 +40,7 @@ class E2EConfig:
     seed: int = 0
     # "synthetic": generated arithmetic, code and fictional-world QA.
     # "real": committed GSM8K + MMLU science/math samples, plus fictional unanswerables.
+    # "symbolic": like "real", with GSM-Symbolic variants (shared templates) instead of GSM8K.
     suite: str = "synthetic"
     # "basic": steady traffic. "complex": topic drift across days, a student that is
     # most overconfident where it is weakest, and a teacher with a blind spot.
@@ -161,8 +162,16 @@ def _unanswerables(seed: int, count: int) -> list[Problem]:
     return found[:count]
 
 
+# GSM-Symbolic slice for `--suite symbolic`: 40 templates x 6 variants = 240 word problems.
+SYMBOLIC_TEMPLATES, SYMBOLIC_VARIANTS = 40, 6
+
+
 def build_real_suite(config: E2EConfig) -> Suite:
-    real = load_real()
+    if config.suite == "symbolic":
+        # Same reasoning, new names and numbers: a remembered method can transfer honestly.
+        real = load_gsm_symbolic(templates=SYMBOLIC_TEMPLATES, per_template=SYMBOLIC_VARIANTS) + load_mmlu()
+    else:
+        real = load_real()
     train, holdout, golden = split(real, (0.5, 0.3, 0.2), seed=config.seed)
     u_train, u_holdout, u_golden = split(_unanswerables(config.seed * 1000 + 900, 40), (0.5, 0.3, 0.2))
     holdout = holdout + u_holdout
@@ -190,7 +199,7 @@ def build_real_suite(config: E2EConfig) -> Suite:
 
 def run_e2e(config: E2EConfig = E2EConfig(), teacher: ModelBackend | None = None) -> dict:
     """Run every stage. Pass `teacher` to use a real model server instead of the mock."""
-    suite = build_real_suite(config) if config.suite == "real" else build_synthetic_suite(config)
+    suite = build_real_suite(config) if config.suite in ("real", "symbolic") else build_synthetic_suite(config)
     train, tune_set, test_set = suite.train, suite.tune, suite.test
     golden = GoldenSet(suite.golden)
     teacher = CachedBackend(teacher or make_teacher(suite.teacher_family_skill))

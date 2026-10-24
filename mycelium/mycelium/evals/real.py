@@ -1,9 +1,11 @@
-"""Real questions: small committed samples of GSM8K and MMLU (both MIT licensed).
+"""Real questions: committed samples of GSM8K, MMLU and GSM-Symbolic.
 
 `mycelium/data/samples/` holds exact copies of public rows (see ATTRIBUTION.md there):
-GSM8K grade-school math word problems, and MMLU multiple-choice questions in physics,
+GSM8K grade-school math word problems, MMLU multiple-choice questions in physics,
 mathematics (incl. geometry), biology, chemistry, astronomy, genetics and computer
-science. `scripts/fetch_datasets.py` downloads the full sets on a machine that can
+science, and Apple's GSM-Symbolic: 100 GSM8K questions turned into templates with 50
+variants each (new names and numbers, same reasoning). GSM-Symbolic is what lets us
+ask whether an insight from one variant helps on another. `scripts/fetch_datasets.py` downloads the full sets on a machine that can
 reach Hugging Face.
 
 Real backends use the model's hidden state as the HIKMAT key. The mock pipeline needs
@@ -91,6 +93,39 @@ def load_gsm8k(path: Path | None = None) -> list[Problem]:
                 features=real_features(family, row["question"]),
                 # GSM-Symbolic rows carry the template they were generated from; GSM8K rows are unique.
                 template=row.get("template", ""),
+            )
+        )
+    return problems
+
+
+def load_gsm_symbolic(
+    path: Path | None = None, *, templates: int | None = None, per_template: int | None = None
+) -> list[Problem]:
+    """GSM-Symbolic rows in Apple's original format, read verbatim.
+
+    `templates` keeps the first N template ids and `per_template` the first N variants
+    of each, so suites can stay small.
+    """
+    problems = []
+    for row in _read_jsonl(path or SAMPLES_DIR / "gsm_symbolic.jsonl"):
+        if (templates is not None and row["id"] >= templates) or (
+            per_template is not None and row["instance"] >= per_template
+        ):
+            continue
+        solution, final = row["answer"].split("####")
+        # No calculator annotations here, so solution lines stand in for steps.
+        steps = max(1, len([line for line in solution.splitlines() if line.strip()]))
+        family = gsm8k_family(steps)
+        problems.append(
+            Problem(
+                id=f"gsm-symbolic-{row['id']}-{row['instance']}",
+                domain="math",
+                prompt=row["question"],
+                answer=final.strip().replace(",", ""),
+                difficulty=float(np.clip(0.15 + 0.1 * steps, 0.0, 0.95)),
+                family=family,
+                features=real_features(family, row["question"]),
+                template=f"gsm-symbolic-{row['id']}",
             )
         )
     return problems

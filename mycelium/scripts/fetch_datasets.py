@@ -8,11 +8,9 @@ Run on a machine that can reach Hugging Face (not needed for tests):
 The output files can be loaded with `mycelium.evals.real.load_gsm8k(path)` and
 `load_mmlu([paths])`. Full datasets are not committed; only the small samples are.
 
-`--gsm-symbolic` also downloads apple/GSM-Symbolic: 100 GSM8K questions turned into
-templates, 50 variants each (same reasoning, new names and numbers). That is the right
-data for measuring whether an insight learned on one variant helps on the others. Its
-license is CC-BY-NC-ND-4.0: fine for local research, but never commit the files or
-derived rows to this repo (`data/full/` is gitignored).
+`--gsm-symbolic` also downloads the P1 and P2 variants of apple/GSM-Symbolic (one and
+two extra clauses per question) into `data/full/`. The main variant is already committed
+as `mycelium/data/samples/gsm_symbolic.jsonl`; see ATTRIBUTION.md there for the license.
 """
 
 from __future__ import annotations
@@ -86,14 +84,15 @@ def main() -> None:
     parser.add_argument("--out", default="data/full")
     parser.add_argument("--split", default="test")
     parser.add_argument("--subjects", nargs="*", default=SUBJECTS)
-    parser.add_argument("--gsm-symbolic", action="store_true", help="also fetch GSM-Symbolic (CC-BY-NC-ND, local only)")
+    parser.add_argument("--gsm-symbolic", action="store_true", help="also fetch GSM-Symbolic P1 and P2")
     args = parser.parse_args()
     out = Path(args.out)
     print("gsm8k", write(out / f"gsm8k_{args.split}.jsonl", gsm8k_rows(args.split)))
     for subject in args.subjects:
         print(subject, write(out / f"mmlu_{subject}.jsonl", mmlu_rows(subject, args.split)))
     if args.gsm_symbolic:
-        print("gsm-symbolic", write(out / "gsm_symbolic_main.jsonl", gsm_symbolic_rows("main")))
+        for config in ("p1", "p2"):
+            print(f"gsm-symbolic-{config}", write(out / f"gsm_symbolic_{config}.jsonl", gsm_symbolic_rows(config)))
 
 
 if __name__ == "__main__":

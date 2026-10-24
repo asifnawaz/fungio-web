@@ -29,7 +29,7 @@ into the same interfaces next.
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"            # add ",faiss" for the FAISS indexes
-pytest -q                          # 81 tests, ~50 s
+pytest -q                          # 84 tests, ~50 s
 python -m mycelium.cli e2e --out report.json
 python -m mycelium.cli e2e --index binary-ivf
 python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
@@ -127,7 +127,17 @@ Short answer: the machinery works, the benefit is unproven. The mock student is 
 
 Δcost is the saving per question vs the same router without memory (positive = cheaper); Δaccuracy is HIKMAT minus no-memory. `procedural_transfer` (0, 0.25, 0.5) changed real-suite savings by at most 0.5 and synthetic ones not at all. \* On the poison day, a correct insight that displaces a forced-in bad one helps, so it is promoted.
 
-What this shows: useless and harmful insights are rejected (that is what the autopilot is for), and memory pays only as much as hints really help: at `hint_gain` 0.1 the saving is under 1 per question (about 4%). Whether it does is the first thing spec 002 measures (task T015a: GSM-Symbolic templates, 50 variants each). Weaknesses that remain in this simulation are listed in `docs/decisions.md` → "Do insights work?".
+What this shows: useless and harmful insights are rejected (that is what the autopilot is for), and memory pays only as much as hints really help: at `hint_gain` 0.1 the saving is under 1 per question (about 4%). Whether it does is the first thing spec 002 measures (task T015a: GSM-Symbolic templates, 50 variants each).
+
+**When problems really share a method (`--suite symbolic`).** GSM8K questions are all different, so a remembered method rarely fits another question. Apple's GSM-Symbolic (committed, 5,000 rows) turns 100 GSM8K questions into templates with 50 variants each: new names and numbers, same reasoning. The symbolic suite uses 40 templates × 6 variants plus the MMLU questions. Same sweep, seed 0, days 1–5, against the same router without memory:
+
+| `hint_gain` | `procedural_transfer` 0 | 0.25 | 0.5 |
+|---|---|---|---|
+| 0 | +0.1 / −0.002 | same | same |
+| 0.1 | +2.0 / +0.002 | +2.8 / 0 | +2.6 / −0.005 |
+| 0.4 | +8.4 / +0.017 | +7.8 / +0.015 | +8.0 / +0.032 |
+
+(saving per question / Δaccuracy; no-memory router: cost 22.7, accuracy 0.89; teacher-only: 27.6, 0.943.) With repeating methods, memory improves cost and accuracy together, unlike on plain GSM8K. It is still the assumed `hint_gain` doing the work; T015a replaces it with a measurement. Weaknesses that remain in this simulation are listed in `docs/decisions.md` → "Do insights work?".
 
 ## What we learned building it
 

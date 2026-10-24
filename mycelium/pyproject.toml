@@ -18,7 +18,7 @@ faiss = ["faiss-cpu>=1.8"]
 include = ["mycelium*"]
 
 [tool.setuptools.package-data]
-mycelium = ["data/samples/*.jsonl", "data/samples/*.md"]
+mycelium = ["data/samples/*.jsonl", "data/samples/*.md", "data/samples/*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

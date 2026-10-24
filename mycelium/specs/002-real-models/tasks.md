@@ -39,7 +39,7 @@ Format: `[ ]` open, `[x]` done, `[P]` can run in parallel with other `[P]` tasks
 ## Phase 3: Real HIKMAT
 - [ ] T015 Keys from mean-pooled middle-layer hidden states; script to pick the layer by same-family recall on the eval suites.
   Proof: chosen layer and recall table in `research.md`.
-- [ ] T015a Kill test for HIKMAT before building more of it: fetch GSM-Symbolic locally (`scripts/fetch_datasets.py --gsm-symbolic`, CC-BY-NC-ND, never commit). For each template, have the real student solve variant 0, store the verified method, then solve variants 1–49 with and without that hint; repeat with a hint from a *different* template of the same step-count family. Report Δaccuracy and Δtokens for both.
+- [ ] T015a Kill test for HIKMAT before building more of it: use the committed GSM-Symbolic file (`load_gsm_symbolic()`, 100 templates × 50 variants). For each template, have the real student solve variant 0, store the verified method, then solve variants 1–49 with and without that hint; repeat with a hint from a *different* template of the same step-count family. Report Δaccuracy and Δtokens for both.
   Proof: a table in `research.md`; those two numbers replace the mock's `hint_gain` and `procedural_transfer` in `python -m mycelium.cli insights`. If same-template Δaccuracy ≤ 0 and Δtokens ≈ 0, stop and rethink HIKMAT (see `docs/decisions.md` → "Do insights work?").
 - [ ] T016 Payload = verified method text given as the hint message; measure loops/tokens saved per hit.
   Proof: HIKMAT days on real problems lower mean cost vs teacher-only at equal accuracy.

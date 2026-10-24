@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from mycelium.evals.judges import judge, mcq_letter
-from mycelium.evals.real import format_mcq, load_gsm8k, load_mmlu, load_real, split
+from mycelium.evals.real import format_mcq, load_gsm8k, load_gsm_symbolic, load_mmlu, load_real, split
 from mycelium.pipeline import E2EConfig, run_e2e
 from mycelium.sim_teacher import solve
 from mycelium.types import Answer
@@ -100,3 +100,34 @@ def test_gsm_symbolic_rows_keep_their_template(tmp_path):
     assert {p.template_key for p in problems} == {"gsm-symbolic-main-7"}
     # Plain GSM8K questions are unique, so each is its own template.
     assert len({p.template_key for p in load_gsm8k()}) == len(load_gsm8k())
+
+
+def test_gsm_symbolic_sample_is_the_verbatim_file():
+    # Apple's notice allows redistribution with the notice kept; we keep the file unmodified.
+    import hashlib
+
+    from mycelium.evals.real import SAMPLES_DIR
+
+    digest = hashlib.sha256((SAMPLES_DIR / "gsm_symbolic.jsonl").read_bytes()).hexdigest()
+    assert digest == "945055837b232bd9b56827b1e3a5aa019075f29e8ba4669d9a9df8b4439a291f"
+    assert (SAMPLES_DIR / "LICENSE-gsm-symbolic.txt").read_text().startswith("Copyright (C) 2024 Apple Inc.")
+
+
+def test_gsm_symbolic_has_100_templates_of_50_variants():
+    problems = load_gsm_symbolic()
+    assert len(problems) == 5000
+    by_template: dict[str, int] = {}
+    for p in problems:
+        by_template[p.template_key] = by_template.get(p.template_key, 0) + 1
+        int(p.answer)
+    assert len(by_template) == 100 and set(by_template.values()) == {50}
+    assert len(load_gsm_symbolic(templates=3, per_template=4)) == 12
+
+
+def test_symbolic_suite_runs_and_hints_match_templates():
+    from mycelium.insights import summarize
+
+    summary = summarize(run_e2e(E2EConfig(suite="symbolic", days=3)))
+    assert summary["hints"] > 0
+    assert summary["same_template_share"] > 0
+    assert summary["memory_cost_saving"] > 0
