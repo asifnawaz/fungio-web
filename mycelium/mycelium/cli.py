@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 
 from mycelium.bench import benchmark, format_rows
 from mycelium.models.openai_compat import OpenAICompatBackend
 from mycelium.pipeline import E2EConfig, run_e2e
+from mycelium.sim_teacher import SimConfig, make_server
 
 INDEX_KINDS = ["numpy", "binary-ivf", "faiss-hnsw"]
 
@@ -53,19 +55,42 @@ def main() -> None:
     e2e.add_argument("--teacher-url", help="OpenAI-compatible server for the teacher, e.g. http://localhost:8080")
     e2e.add_argument("--teacher-model", default="teacher", help="model name to send to the teacher server")
     e2e.add_argument("--teacher-cost", type=float, default=16.0, help="teacher cost per loop relative to the student")
+    e2e.add_argument(
+        "--teacher-api-key-env",
+        help="name of the environment variable holding the teacher's API key (the key never goes on the command line)",
+    )
     bench = sub.add_parser("bench", help="benchmark HIKMAT vector indexes")
     bench.add_argument("--n", type=int, default=100_000, help="number of stored keys")
     bench.add_argument("--queries", type=int, default=500)
     bench.add_argument("--index", choices=INDEX_KINDS, action="append", help="repeat to pick several (default: all available)")
+    sim = sub.add_parser("sim-teacher", help="serve a simulated teacher on an OpenAI-compatible endpoint")
+    sim.add_argument("--port", type=int, default=8080)
+    sim.add_argument("--accuracy", type=float, default=0.93)
+    sim.add_argument("--latency", type=float, default=0.0, help="seconds to wait per request")
     args = parser.parse_args()
 
     if args.command == "bench":
         print(format_rows(benchmark(args.n, args.queries, kinds=args.index), args.n))
         return
+    if args.command == "sim-teacher":
+        server = make_server(port=args.port, config=SimConfig(accuracy=args.accuracy, latency_s=args.latency))
+        print(f"simulated teacher on http://127.0.0.1:{args.port}/v1/chat/completions (Ctrl+C to stop)")
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            server.shutdown()
+        return
 
     teacher = None
     if args.teacher_url:
-        teacher = OpenAICompatBackend(args.teacher_url, args.teacher_model, cost_per_loop=args.teacher_cost)
+        api_key = None
+        if args.teacher_api_key_env:
+            api_key = os.environ.get(args.teacher_api_key_env)
+            if not api_key:
+                parser.error(f"environment variable {args.teacher_api_key_env} is not set")
+        teacher = OpenAICompatBackend(
+            args.teacher_url, args.teacher_model, cost_per_loop=args.teacher_cost, api_key=api_key
+        )
     report = run_e2e(E2EConfig(seed=args.seed, memory_index=args.index), teacher=teacher)
     print(_summary(report))
     if args.out:

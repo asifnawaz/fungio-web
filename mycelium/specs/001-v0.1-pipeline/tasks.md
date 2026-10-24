@@ -1,0 +1,18 @@
+# Tasks 001: v0.1 pipeline (complete)
+
+- [x] T001 JUDGE: math, QA, code-in-subprocess verifiers with caching (`evals/judges.py`)
+- [x] T002 Metrics: ECE, Brier, AUROC, hallucination and abstain rates (`evals/metrics.py`)
+- [x] T003 Synthetic suites with problem families and unanswerable QA (`evals/datasets.py`)
+- [x] T004 Mock teacher and student with realistic failure modes (`models/mock.py`)
+- [x] T005 P1 distillation with rejection sampling (`distill.py`)
+- [x] T006 P2 RLCR reward, GRPO advantages, dynamic sampling (`rlcr.py`)
+- [x] T007 P3 TRIAGE router, threshold tuning, Pareto front, teacher-only fallback (`router.py`)
+- [x] T008 CODON 2-bit codec (`hikmat/codec.py`)
+- [x] T009 HIKMAT memory: admission, merge, budget, eviction, expiry, versioning (`hikmat/memory.py`)
+- [x] T010 Autopilot: shadow review, golden fingerprint, ratchet, rollback (`autopilot.py`)
+- [x] T011 Attack scenarios in the e2e run (`pipeline.py`)
+- [x] T012 Fix: router `stop_at` mismatch; lookup-first routing; monotonic ids after rollback
+- [x] T013 Vector indexes: numpy (exact), faiss-hnsw, binary-ivf (XOR + IVF) with a benchmark (`hikmat/index.py`, `bench.py`)
+- [x] T014 OpenAI-compatible teacher backend + response cache (`models/openai_compat.py`, `models/cache.py`)
+- [x] T015 Simulated HTTP teacher and full pipeline over HTTP (`sim_teacher.py`, `tests/test_sim_teacher.py`)
+- [x] T016 API key via environment variable only (`--teacher-api-key-env`)

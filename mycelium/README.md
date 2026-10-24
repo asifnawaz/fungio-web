@@ -29,7 +29,7 @@ into the same interfaces next.
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"            # add ",faiss" for the FAISS indexes
-pytest -q                          # 55 tests, ~30 s
+pytest -q                          # 58 tests, ~35 s
 python -m mycelium.cli e2e --out report.json
 python -m mycelium.cli e2e --index binary-ivf
 python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
@@ -37,14 +37,32 @@ python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
 
 ### With a real teacher
 
-Any OpenAI-compatible server works: llama.cpp's `llama-server`, vLLM, SGLang, Ollama or LM Studio. For example, on a 3090 with a GSQ-RCO GGUF of Qwen3.8-27B (check the model card for the minimum llama.cpp version):
+Any OpenAI-compatible server works: llama.cpp's `llama-server`, vLLM, SGLang, Ollama or LM Studio. On a 3090, the planned teacher is ISTA-DASLab's `Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf` (11.8 GB, task-lossless per its card, runs unmodified in llama.cpp):
 
 ```bash
-llama-server -m <qwen3.8-27b-gsq-rco>.gguf -ngl 99 -c 32768 --port 8080
+hf download ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf --local-dir models
+llama-server -m models/Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf -ngl 99 -c 32768 --port 8080
 python -m mycelium.cli e2e --teacher-url http://localhost:8080 --teacher-model qwen3.8-27b
 ```
 
+A hosted API works the same way; keep the key in an environment variable:
+
+```bash
+export DEEPSEEK_API_KEY=...   # never commit it or pass it on the command line
+python -m mycelium.cli e2e --teacher-url https://api.deepseek.com --teacher-model <model id from DeepSeek's docs> \
+  --teacher-api-key-env DEEPSEEK_API_KEY
+```
+
+No GPU or key? Run the simulated teacher, which answers over the same HTTP API:
+
+```bash
+python -m mycelium.cli sim-teacher --port 8080 &
+python -m mycelium.cli e2e --teacher-url http://localhost:8080 --teacher-model sim-qwen
+```
+
 The teacher must end each reply with `ANSWER:` and `CONFIDENCE:` lines (the system prompt asks for this). Its answers are cached, so router tuning replays them instead of asking again.
+
+**AI agents:** start with [`AGENTS.md`](AGENTS.md). Specs, plans and the task list live in [`specs/`](specs/).
 
 ## What the end-to-end run does
 
@@ -98,11 +116,13 @@ Libraries chosen per stage, so nothing here reinvents what already exists:
 
 HIKMAT lookup speed on this machine (4 CPU cores, 64-dim clustered keys; `python -m mycelium.cli bench` reproduces it):
 
-| Records | Before (rebuild per lookup) | `numpy` (exact) | `faiss-hnsw` | `binary-ivf` (XOR + IVF) |
+| Records | Before (rebuild per lookup) | `numpy` (exact) | `faiss-hnsw` (float graph) | `binary-ivf` (XOR + IVF) |
 |---|---|---|---|---|
 | 10,000 | 6.1 ms | 0.07 ms | 0.11 ms | same as numpy (exact below 10k) |
 | 100,000 | (35.6 ms at 50k) | 0.58 ms | 0.07 ms, 99.6% right family | 0.08 ms, 100% right family |
-| 1,000,000 | — | 8.4 ms | — | 0.12 ms, 99.3% right family |
+| 1,000,000 | — | 9.4 ms | 0.13 ms, 98.0% right family, 131 s build | 0.12 ms, 99.3% right family, 41 s build |
+
+Per key, `faiss-hnsw` keeps 256 bytes of floats plus its graph; `binary-ivf` searches 8 bytes of sign bits.
 
 `binary-ivf` searches exactly until 10k records, then keeps each key's sign bits (64 dims → 8 bytes) in a FAISS binary IVF: only 8 clusters are scanned, Hamming distance (popcount of XOR) builds a shortlist, and the shortlist is reranked exactly. A plain XOR scan in NumPy was slower than the float product (2.8 ms vs 0.58 ms at 100k), so it isn't offered. Inserts went from quadratic (280 s for 50k) to ~0.4 ms each at 100k.
 
