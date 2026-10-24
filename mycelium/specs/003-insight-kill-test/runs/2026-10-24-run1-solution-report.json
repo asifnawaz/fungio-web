@@ -1,0 +1,42 @@
+{
+  "templates": 20,
+  "targets": 100,
+  "acc_none": 0.74,
+  "acc_same": 0.05,
+  "acc_other": 0.08,
+  "effort_none": 396.44,
+  "effort_same": 17.07,
+  "effort_other": 36.94,
+  "d_acc_same": -0.69,
+  "d_acc_other": -0.66,
+  "d_effort_same": -0.9569417818585411,
+  "d_effort_other": -0.9068207042679851,
+  "ci95": {
+    "d_acc_same": [
+      -0.83025,
+      -0.5397500000000013
+    ],
+    "d_acc_other": [
+      -0.8099999999999999,
+      -0.51
+    ],
+    "d_effort_same": [
+      -0.9701073462324074,
+      -0.934796344005398
+    ],
+    "d_effort_other": [
+      -0.9618216442575623,
+      -0.819156914008881
+    ]
+  },
+  "mock_equivalents": {
+    "math_skill": 0.71063232421875,
+    "hint_gain": -0.99969482421875,
+    "hint_gain_ci95": [
+      -0.99969482421875,
+      -0.82635498046875
+    ],
+    "procedural_transfer": 1.13360595703125
+  },
+  "verdict": "kill"
+}

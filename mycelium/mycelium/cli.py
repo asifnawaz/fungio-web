@@ -93,6 +93,8 @@ def main() -> None:
     kt.add_argument("--seed", type=int, default=0)
     kt.add_argument("--trials", help="append trials here as JSON lines; a rerun resumes from it")
     kt.add_argument("--workers", type=int, default=1, help="requests in flight at once (match llama-server -np)")
+    kt.add_argument("--payload", choices=["solution", "method"], default="solution",
+                    help="solution: donor's worked solution; method: its steps with numbers masked, no answer")
     kt.add_argument("--out", help="write the analysis as JSON here")
     base = sub.add_parser("baseline", help="P0 on real hardware: measure one model alone on a real suite's holdout")
     base.add_argument("--url", required=True, help="OpenAI-compatible server of the model to measure")
@@ -211,7 +213,8 @@ def _killtest(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None
         if args.api_key_env and not api_key:
             parser.error(f"environment variable {args.api_key_env} is not set")
         backend = OpenAICompatBackend(args.url, args.model, tokens_per_loop=args.max_tokens, api_key=api_key)
-        payload, unit = killtest.solution_payload, "tokens"
+        payload = killtest.method_payload if args.payload == "method" else killtest.solution_payload
+        unit = "tokens"
     total = args.templates * args.variants * len(killtest.CONDITIONS)
     count = 0
 

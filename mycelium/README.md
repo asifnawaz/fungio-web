@@ -29,7 +29,7 @@ into the same interfaces next.
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"            # add ",faiss" for the FAISS indexes
-pytest -q                          # 109 tests, ~60 s
+pytest -q                          # 116 tests, ~60 s
 python -m mycelium.cli e2e --out report.json
 python -m mycelium.cli e2e --index binary-ivf
 python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes

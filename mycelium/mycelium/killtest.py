@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import functools
 import json
+import re
 from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
@@ -84,6 +85,25 @@ def other_donor(template: int, items: dict[tuple[int, int], Item], seed: int = 0
 def solution_payload(donor: Item) -> str:
     """What a real model sees: the donor problem and its verified worked solution."""
     return f"Problem: {donor.row['question']}\nVerified solution:\n{donor.row['answer']}"
+
+
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def method_payload(donor: Item) -> str:
+    """The donor's method without its numbers or final answer.
+
+    The full worked solution made Qwen3.5-2B stop reasoning and copy the donor's answer
+    (spec 003 research.md, first real run). Here every number becomes a letter, so the
+    steps show the method but no result can be copied.
+    """
+    steps = donor.row["answer"].split("####")[0]
+    letters = iter(f"<{chr(97 + i % 26)}{i // 26 or ''}>" for i in range(10_000))
+    masked = _NUMBER.sub(lambda _: next(letters), steps).strip()
+    return (
+        "Method used for a similar problem (numbers replaced by placeholders). Apply the same steps "
+        f"to the numbers in your problem and compute the result yourself:\n{masked}"
+    )
 
 
 def tag_payload(donor: Item) -> str:

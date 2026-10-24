@@ -1,6 +1,8 @@
 """The spec 003 kill test must find a hint effect when there is one, report none when
 there isn't, and resume a long run without repeating work."""
 
+import re
+
 import pytest
 
 from mycelium import killtest
@@ -113,3 +115,14 @@ def test_parallel_workers_give_the_same_trials():
     serial = killtest.run(_mock(gain=0.4), templates=[0, 1, 2], variants=3, payload=killtest.tag_payload)
     parallel = killtest.run(_mock(gain=0.4), templates=[0, 1, 2], variants=3, payload=killtest.tag_payload, workers=4)
     assert parallel == serial
+
+
+def test_method_payload_hides_every_number_and_the_answer():
+    # The full solution made a real 2B model copy the donor's answer (research.md, run 1).
+    items = killtest.load_items()
+    for template in range(10):
+        text = killtest.method_payload(items[(template, 0)])
+        body = text.split("\n", 1)[1]
+        assert "####" not in text
+        # Digits may only appear inside placeholders like <a1>.
+        assert not re.search(r"\d", re.sub(r"<[a-z]\d*>", "", body))

@@ -25,6 +25,27 @@ The rules below are implemented in `mycelium/killtest.py:verdict` and must not c
 
 **Sample size.** Default 50 templates × 10 variants = 500 targets, 1,500 calls. On the mock, 30 templates × 10 variants gave a `d_acc_same` interval about ±0.03 wide (`hint_gain` 0.1: +0.053, interval +0.025 to +0.085), so 500 targets should resolve an accuracy change of about 0.04. A real model's variance may differ; the bootstrap reports what was actually achieved.
 
+## Real runs
+
+### Run 1: untrained Qwen3.5-2B, full worked solution as the hint (T010a), 2026-10-24
+
+Cloud container CPU (4-core Xeon @ 2.10GHz, no GPU), llama.cpp `8e5a58d`, `unsloth/Qwen3.5-2B-MTP-GGUF` `Qwen3.5-2B-Q8_0.gguf`, `llama-server -c 16384 -np 4 -t 4 --reasoning off --spec-type draft-mtp`.
+Command: `python -m mycelium.cli killtest --url http://127.0.0.1:8081 --model qwen3.5-2b --templates 20 --variants 5 --workers 4` (300 trials, ~27 min). Smaller than the planned 50 × 10 to fit the CPU; the effect was large enough to decide.
+
+| Condition | Accuracy | Mean tokens |
+|---|---|---|
+| none | 0.740 | 396.4 |
+| same | 0.050 | 17.1 |
+| other | 0.080 | 36.9 |
+
+same − none: accuracy −0.690 [−0.830, −0.540], tokens −95.7%. other − none: accuracy −0.660 [−0.810, −0.510]. **Verdict (pre-registered rule): `kill`** for this payload.
+
+Why: with the donor's worked solution in the prompt, the model stopped reasoning (13–19 tokens instead of ~400) and either copied the donor's final answer or guessed. In a 16-question check, 6 replies were exactly the donor's answer; only 2 of 16 targets share the donor's answer. This is the "semantic cache" failure `docs/decisions.md` warned about: an insight that carries a final answer gets copied when the numbers differ.
+
+### Amendment, registered 2026-10-24 before its run: H1b, method-only payload
+
+Same design, rules, verdict function and server settings as run 1. Only the payload changes: the donor's solution steps with every number replaced by a placeholder (`<a>`, `<b>`, …), no final answer, and an instruction to apply the steps to the new numbers (`--payload method`, `killtest.method_payload`). The `none` trials of run 1 are reused (same templates, variants, seed and server). If H1b is also `kill`, HIKMAT's hint payloads don't help this model and roadmap Q4 goes to the owner.
+
 ## Harness checks (mock and simulated teacher, 4-core Xeon container)
 
 Mock student, known parameters, `analyze` with the calibration fit (`python -c` runs in this session):
