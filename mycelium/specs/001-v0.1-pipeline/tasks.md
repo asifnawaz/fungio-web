@@ -16,3 +16,8 @@
 - [x] T014 OpenAI-compatible teacher backend + response cache (`models/openai_compat.py`, `models/cache.py`)
 - [x] T015 Simulated HTTP teacher and full pipeline over HTTP (`sim_teacher.py`, `tests/test_sim_teacher.py`)
 - [x] T016 API key via environment variable only (`--teacher-api-key-env`)
+- [x] T017 Real questions: 80 GSM8K + 250 MMLU (10 science/math subjects) committed with attribution; loaders and a full-download script (`evals/real.py`, `data/samples/`, `scripts/fetch_datasets.py`)
+- [x] T018 Multiple-choice domain: prompt format, letter parsing that doesn't mistake the article "A" for option A, judging (`evals/judges.py`)
+- [x] T019 Complex scenario: topic drift, subject-level skills, overconfidence where weak (Dunning-Kruger), teacher blind spot (`pipeline.py`, `models/mock.py`)
+- [x] T020 Simulated teacher answers the real samples, with per-family accuracy overrides (`sim_teacher.py`)
+- [x] T021 Anti-hallucination, anti-reversal and anti-slop rules for agents (`AGENTS.md`)

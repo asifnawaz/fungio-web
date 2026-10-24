@@ -6,7 +6,9 @@
 It stands in for something like a Qwen3.8-27B GSQ-RCO GGUF served by llama-server, so
 the whole pipeline can run through `OpenAICompatBackend` (HTTP, prompt format, reply
 parsing, caching) without a GPU. It solves the synthetic suites from `evals.datasets`
-by reading the prompt, answers correctly with probability `accuracy`, writes some
+by reading the prompt, looks up the committed GSM8K and MMLU samples by their exact
+prompt, answers correctly with probability `accuracy` (per-family overrides model a
+blind spot), picks a consistent distractor when wrong, writes some
 reasoning text first, states a roughly calibrated confidence, sometimes formats that
 confidence as a percentage or leaves it out, and abstains on entities it doesn't know.
 Its quality numbers mean nothing about any real model.
@@ -14,16 +16,19 @@ Its quality numbers mean nothing about any real model.
 
 from __future__ import annotations
 
+import functools
 import json
 import re
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
 
 from mycelium.evals.datasets import CODE_TASKS, qa_world, stable_seed
+from mycelium.evals.real import load_real
+from mycelium.types import MCQ_LETTERS
 
 _MATH = [
     (re.compile(r"What is (-?\d+) \+ (-?\d+) \* (-?\d+)\?"), lambda a, b, c: a + b * c),
@@ -39,6 +44,8 @@ _QA = re.compile(r"What is the (\w+) of (\w+)\?")
 @dataclass
 class SimConfig:
     accuracy: float = 0.93
+    # Per-family accuracy overrides, e.g. {"mcq:high_school_chemistry": 0.6} for a blind spot.
+    family_accuracy: dict[str, float] = field(default_factory=dict)
     hint_bonus: float = 0.04
     missing_confidence_rate: float = 0.05
     percent_confidence_rate: float = 0.2
@@ -46,8 +53,35 @@ class SimConfig:
     seed: int = 0
 
 
-def solve(prompt: str) -> tuple[str, str, str | None]:
+@functools.lru_cache(maxsize=1)
+def _real_answer_key() -> dict[str, tuple[str, str, str, str]]:
+    """prompt -> (domain, family, right, wrong) for the committed GSM8K and MMLU samples."""
+    key = {}
+    for p in load_real():
+        if p.domain == "mcq":
+            wrong = [c for c in MCQ_LETTERS[: len(p.choices)] if c != p.answer]
+            key[p.prompt] = ("mcq", p.family, p.answer, wrong[stable_seed("distractor", p.id) % len(wrong)])
+        else:
+            key[p.prompt] = ("math", p.family, p.answer, str(int(float(p.answer)) + 10))
+    return key
+
+
+def solve(prompt: str) -> tuple[str, str | None, str]:
     """Return (domain, correct answer text or None if unknown, wrong answer text)."""
+    domain, _, right, wrong = _lookup(prompt)
+    return domain, right, wrong
+
+
+def _lookup(prompt: str) -> tuple[str, str | None, str | None, str]:
+    """Return (domain, family or None, correct answer or None, wrong answer)."""
+    real = _real_answer_key().get(prompt)
+    if real:
+        return real
+    domain, right, wrong = _solve_synthetic(prompt)
+    return domain, None, right, wrong
+
+
+def _solve_synthetic(prompt: str) -> tuple[str, str | None, str]:
     for pattern, fn in _MATH:
         m = pattern.search(prompt)
         if m:
@@ -67,7 +101,7 @@ def solve(prompt: str) -> tuple[str, str, str | None]:
 def reply(messages: list[dict], sample_seed: int, config: SimConfig) -> tuple[str, int]:
     prompt = next((m["content"] for m in messages if m["role"] == "user"), "")
     hinted = sum(1 for m in messages if m["role"] == "user") > 1
-    domain, right, wrong = solve(prompt)
+    domain, family, right, wrong = _lookup(prompt)
     rng = np.random.default_rng(stable_seed("sim-teacher", config.seed, prompt, sample_seed))
     reasoning = "Let me work through this step by step. " * int(rng.integers(3, 12))
 
@@ -76,7 +110,8 @@ def reply(messages: list[dict], sample_seed: int, config: SimConfig) -> tuple[st
                  f"CONFIDENCE: {rng.uniform(0.05, 0.2):.2f}"]
         return "\n".join(lines), int(rng.integers(80, 200))
 
-    p = min(0.99, config.accuracy + (config.hint_bonus if hinted else 0.0))
+    base = config.family_accuracy.get(family, config.accuracy) if family else config.accuracy
+    p = min(0.99, base + (config.hint_bonus if hinted else 0.0))
     correct = rng.random() < p
     answer = right if correct else wrong
     stated = float(np.clip((p if correct else 1 - p + 0.5) + rng.normal(0, 0.05), 0.05, 0.99))

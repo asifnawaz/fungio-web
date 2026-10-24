@@ -7,15 +7,17 @@ moves its metric in the right direction and that the safety gates fire when atta
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import asdict, dataclass
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
 
 import numpy as np
 
 from mycelium.autopilot import Autopilot, GoldenSet, TamperError
 from mycelium.distill import distill
-from mycelium.evals.datasets import FEATURE_DIM, family_center, make_suite
+from mycelium.evals.datasets import FEATURE_DIM, family_center, make_suite, stable_seed
 from mycelium.evals.harness import evaluate
 from mycelium.evals.judges import judge
+from mycelium.evals.real import load_real, split
 from mycelium.hikmat.codec import CodonCodec
 from mycelium.hikmat.memory import HikmatMemory
 from mycelium.models.base import ModelBackend
@@ -23,6 +25,7 @@ from mycelium.models.cache import CachedBackend
 from mycelium.models.mock import MockModel, method_tag
 from mycelium.rlcr import learnable_problems, run_rlcr
 from mycelium.router import Thresholds, Triage, run_policy, teacher_only, tune_thresholds
+from mycelium.types import Problem
 
 # Harder families that keep coming back, so remembered insights have something to save.
 RECURRING = {
@@ -35,47 +38,148 @@ RECURRING = {
 @dataclass
 class E2EConfig:
     seed: int = 0
+    # "synthetic": generated arithmetic, code and fictional-world QA.
+    # "real": committed GSM8K + MMLU science/math samples, plus fictional unanswerables.
+    suite: str = "synthetic"
+    # "basic": steady traffic. "complex": topic drift across days, a student that is
+    # most overconfident where it is weakest, and a teacher with a blind spot.
+    scenario: str = "basic"
     train_per_domain: int = 150
     eval_per_domain: int = 60
     rlcr_steps: int = 8
     days: int = 6
     day_per_domain: int = 40
+    day_size: int = 120
     memory_budget_bytes: int = 64 * 1024
     memory_index: str = "numpy"
     poison_day: int = 3
 
 
-def make_teacher() -> MockModel:
+@dataclass
+class Suite:
+    train: list[Problem]
+    tune: list[Problem]
+    test: list[Problem]
+    golden: list[Problem]
+    day_problems: Callable[[int], list[Problem]]
+    # (target family, misleading family) pairs for the poison attacks.
+    quarantined_poison: tuple[str, str]
+    forced_poison: list[tuple[str, str]]
+    student_family_skill: dict[str, float] = field(default_factory=dict)
+    teacher_family_skill: dict[str, float] = field(default_factory=dict)
+
+
+def make_teacher(family_skill: dict[str, float] | None = None) -> MockModel:
     # Cost per loop scales with parameter count: a 27B teacher vs a ~1.7B student is ~16x.
     return MockModel(
         "oracle",
-        {"math": 0.95, "code": 0.95, "qa": 0.95},
+        {"math": 0.95, "code": 0.95, "qa": 0.95, "mcq": 0.95},
         overconfidence=0.0,
         awareness=0.95,
         cost_per_loop=16.0,
         version="mock-oracle",
+        family_skill=family_skill,
     )
 
 
-def make_student() -> MockModel:
+def make_student(family_skill: dict[str, float] | None = None, dunning_kruger: float = 0.0) -> MockModel:
     return MockModel(
         "sprout",
-        {"math": 0.45, "code": 0.40, "qa": 0.35},
+        {"math": 0.45, "code": 0.40, "qa": 0.35, "mcq": 0.45},
         overconfidence=0.2,
         awareness=0.1,
         cost_per_loop=1.0,
+        family_skill=family_skill,
+        dunning_kruger=dunning_kruger,
+    )
+
+
+def _drifting_sampler(pool: list[Problem], size: int, seed: int, drift: bool) -> Callable[[int], list[Problem]]:
+    """Each day draws `size` problems from `pool`. With drift, a rotating group of
+    families is four times as likely on a given day, so traffic shifts over time."""
+    families = sorted({p.family for p in pool})
+
+    def day_problems(day: int) -> list[Problem]:
+        rng = np.random.default_rng(stable_seed("day", seed, day))
+        weights = np.ones(len(pool))
+        if drift:
+            focus = {families[(2 * day + k) % len(families)] for k in range(max(1, len(families) // 4))}
+            weights = np.array([4.0 if p.family in focus else 1.0 for p in pool])
+        picks = rng.choice(len(pool), size=size, replace=True, p=weights / weights.sum())
+        return [pool[i] for i in picks]
+
+    return day_problems
+
+
+def build_synthetic_suite(config: E2EConfig) -> Suite:
+    base = config.seed * 1000
+    holdout = make_suite(base + 2, config.eval_per_domain)
+    complex_ = config.scenario == "complex"
+    if complex_:
+        pool = [p for d in range(4) for p in make_suite(base + 100 + d, config.day_per_domain, families=RECURRING)]
+
+        def day_problems(day: int) -> list[Problem]:
+            return _drifting_sampler(pool, config.day_size, config.seed, drift=True)(day)
+    else:
+        def day_problems(day: int) -> list[Problem]:
+            return make_suite(base + 100 + day, config.day_per_domain, families=RECURRING)
+    return Suite(
+        train=make_suite(base + 1, config.train_per_domain),
+        tune=holdout[::2],
+        test=holdout[1::2],
+        golden=make_suite(base + 3, config.eval_per_domain),
+        day_problems=day_problems,
+        quarantined_poison=("math:mul_medium", "math:add_small"),
+        forced_poison=[("code:factorial", "code:add"), ("qa:founder", "qa:capital")],
+        student_family_skill={"code:factorial": -0.1, "math:chain": -0.1} if complex_ else {},
+        teacher_family_skill={"code:fizzbuzz": -0.3} if complex_ else {},
+    )
+
+
+def _unanswerables(seed: int, count: int) -> list[Problem]:
+    """Fictional-entity questions nobody can answer, to keep honesty measurable."""
+    found: list[Problem] = []
+    offset = 0
+    while len(found) < count:
+        found += [p for p in make_suite(seed + offset, 100) if not p.answerable]
+        offset += 1
+    return found[:count]
+
+
+def build_real_suite(config: E2EConfig) -> Suite:
+    real = load_real()
+    train, holdout, golden = split(real, (0.5, 0.3, 0.2), seed=config.seed)
+    u_train, u_holdout, u_golden = split(_unanswerables(config.seed * 1000 + 900, 40), (0.5, 0.3, 0.2))
+    holdout = holdout + u_holdout
+    complex_ = config.scenario == "complex"
+    return Suite(
+        train=train + u_train,
+        tune=holdout[::2],
+        test=holdout[1::2],
+        golden=golden + u_golden,
+        # Deployment traffic comes from the same kinds of questions; the golden set stays unseen.
+        day_problems=_drifting_sampler(train + holdout, config.day_size, config.seed, drift=complex_),
+        quarantined_poison=("math:gsm8k-medium", "math:gsm8k-short"),
+        forced_poison=[("mcq:high_school_physics", "mcq:astronomy"), ("mcq:college_biology", "mcq:high_school_chemistry")],
+        # Weak in chemistry and physics, stronger in biology.
+        student_family_skill={
+            "mcq:high_school_chemistry": -0.15,
+            "mcq:high_school_physics": -0.1,
+            "mcq:conceptual_physics": -0.05,
+            "mcq:high_school_biology": 0.1,
+            "mcq:college_biology": 0.05,
+        },
+        teacher_family_skill={"mcq:high_school_chemistry": -0.35} if complex_ else {},
     )
 
 
 def run_e2e(config: E2EConfig = E2EConfig(), teacher: ModelBackend | None = None) -> dict:
     """Run every stage. Pass `teacher` to use a real model server instead of the mock."""
-    base = config.seed * 1000
-    train = make_suite(base + 1, config.train_per_domain)
-    holdout = make_suite(base + 2, config.eval_per_domain)
-    tune_set, test_set = holdout[::2], holdout[1::2]
-    golden = GoldenSet(make_suite(base + 3, config.eval_per_domain))
-    teacher = CachedBackend(teacher or make_teacher())
-    student = make_student()
+    suite = build_real_suite(config) if config.suite == "real" else build_synthetic_suite(config)
+    train, tune_set, test_set = suite.train, suite.tune, suite.test
+    golden = GoldenSet(suite.golden)
+    teacher = CachedBackend(teacher or make_teacher(suite.teacher_family_skill))
+    student = make_student(suite.student_family_skill, dunning_kruger=0.8 if config.scenario == "complex" else 0.0)
 
     def student_eval() -> dict:
         return evaluate(lambda p: student.answer(p, max_loops=4), test_set)
@@ -103,14 +207,44 @@ def run_e2e(config: E2EConfig = E2EConfig(), teacher: ModelBackend | None = None
         "triage": run_policy(triage.solve, test_set),
     }
 
-    report["p4_hikmat"] = run_hikmat_days(student, teacher, thresholds, golden, config)
+    report["suite"] = {
+        "name": config.suite,
+        "scenario": config.scenario,
+        "sizes": {"train": len(train), "tune": len(tune_set), "test": len(test_set), "golden": len(suite.golden)},
+        "families": len({p.family for p in train}),
+    }
+    report["per_family"] = _per_family_accuracy(student, test_set)
+    report["p4_hikmat"] = run_hikmat_days(student, teacher, thresholds, golden, config, suite)
     report["golden_tamper_detected"] = _tamper_is_detected(golden)
     report["teacher_calls"] = {"made": teacher.misses, "served_from_cache": teacher.hits}
     return report
 
 
+def _per_family_accuracy(student: MockModel, problems: list[Problem]) -> dict[str, dict]:
+    """Accuracy and mean confidence per family: where the student is weak and whether it knows."""
+    rows: dict[str, list[tuple[bool, float]]] = {}
+    for p in problems:
+        if not p.answerable:
+            continue
+        a = student.answer(p, max_loops=4)
+        rows.setdefault(p.family, []).append((judge(p, a), a.confidence))
+    return {
+        family: {
+            "n": len(r),
+            "accuracy": float(np.mean([c for c, _ in r])),
+            "mean_confidence": float(np.mean([conf for _, conf in r])),
+        }
+        for family, r in sorted(rows.items())
+    }
+
+
 def run_hikmat_days(
-    student: MockModel, teacher: ModelBackend, thresholds: Thresholds, golden: GoldenSet, config: E2EConfig
+    student: MockModel,
+    teacher: ModelBackend,
+    thresholds: Thresholds,
+    golden: GoldenSet,
+    config: E2EConfig,
+    suite: Suite,
 ) -> dict:
     memory = HikmatMemory(
         CodonCodec(FEATURE_DIM, student.version),
@@ -122,8 +256,8 @@ def run_hikmat_days(
     triage = Triage(student, teacher, memory, thresholds)
     days, step = [], 0
     for day in range(config.days):
-        problems = make_suite(config.seed * 1000 + 100 + day, config.day_per_domain, families=RECURRING)
-        attacks = _inject_poison(memory, step) if day == config.poison_day else {}
+        problems = suite.day_problems(day)
+        attacks = _inject_poison(memory, step, suite) if day == config.poison_day else {}
         proposals: Counter = Counter()
         results = []
         for problem in problems:
@@ -142,7 +276,8 @@ def run_hikmat_days(
                     verified=correct,
                     confidence=result.answer.confidence,
                     loops_spent=triage.think_loops,
-                    verify_level=2 if problem.domain == "qa" else 1,
+                    # Facts and multiple choice need two confirmations; math and code are machine-checked.
+                    verify_level=2 if problem.domain in ("qa", "mcq") else 1,
                     step=step,
                 )
                 proposals[outcome] += 1
@@ -169,7 +304,7 @@ def run_hikmat_days(
     return {"golden_accuracy_without_memory": golden_before, "days": days, "events": autopilot.events}
 
 
-def _inject_poison(memory: HikmatMemory, step: int) -> dict:
+def _inject_poison(memory: HikmatMemory, step: int, suite: Suite) -> dict:
     """Two attacks: a bad insight sent through quarantine (review should reject it), and
     bad insights forced live as if a verifier bug let them through (health check should
     roll them back)."""
@@ -182,8 +317,8 @@ def _inject_poison(memory: HikmatMemory, step: int) -> dict:
             raise RuntimeError(f"poison record was not stored ({outcome}); attack results would be meaningless")
         return max(memory.records)
 
-    quarantined = plant("math:mul_medium", "math:add_small")
-    forced = [plant("code:factorial", "code:add"), plant("qa:founder", "qa:capital")]
+    quarantined = plant(*suite.quarantined_poison)
+    forced = [plant(target, wrong) for target, wrong in suite.forced_poison]
     for record_id in forced:
         memory.promote(record_id)
     return {"quarantined_poison": quarantined, "forced_poison": forced}

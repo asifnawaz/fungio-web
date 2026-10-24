@@ -15,8 +15,8 @@ Format: `[ ]` open, `[x]` done, `[P]` can run in parallel with other `[P]` tasks
   Proof: report saved. The key never appears in files or shell history.
 
 ## Phase 1: Trustworthy evaluation
-- [ ] T006 [P] Add `mycelium/evals/real/` loaders returning `Problem` lists for GSM8K, MATH-500, HumanEval+/MBPP+ (EvalPlus) and factual QA with unanswerable questions; a cache directory for downloads.
-  Proof: `tests/test_real_loaders.py` with tiny fixture files (no network in tests).
+- [ ] T006 [P] Extend `mycelium/evals/real.py`: GSM8K and MMLU loaders exist (samples committed, `scripts/fetch_datasets.py` for full sets). Add MATH-500, HumanEval+/MBPP+ (EvalPlus) and factual QA with unanswerable questions; run `scripts/fetch_datasets.py` on the PC and evaluate on the full sets.
+  Proof: loader tests with tiny fixture files (no network in tests); full-set teacher accuracy recorded in `research.md`.
 - [ ] T007 [P] Code sandbox: `judge_code` runs inside a container (no network, CPU/memory/time limits) when available, otherwise the current subprocess path with a loud warning.
   Proof: tests show a network call and an infinite loop are both blocked.
 - [ ] T008 Private holdout: a split never used for tuning, fingerprinted like `GoldenSet`; loaded only by a `--final` flag.

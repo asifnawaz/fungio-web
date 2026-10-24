@@ -34,6 +34,29 @@ def judge_qa(expected: str, text: str) -> bool:
     return _normalize(expected) == _normalize(text)
 
 
+# A letter followed by "." ")" ":" or nothing. Not a space: "A planet ..." is not option A.
+_LEADING_LETTER = re.compile(r"^\(?([A-D])\)?(?:[.):]|$)")
+_ANSWER_IS = re.compile(r"answer\s*(?:is)?\s*[:\-]?\s*\(?([A-D])\)?\b", re.IGNORECASE)
+# "A" followed by a lowercase word is the article ("A planet ..."), not option A.
+_LONE_LETTER = re.compile(r"\b(A(?!\s+[a-z])|[B-D])\b")
+
+
+def mcq_letter(text: str) -> str | None:
+    """The option letter a reply commits to: a leading letter, "answer is X", or the
+    last standalone A-D. None when the reply names no option."""
+    text = text.strip()
+    for pattern in (_LEADING_LETTER, _ANSWER_IS):
+        match = pattern.search(text)
+        if match:
+            return match.group(1).upper()
+    letters = _LONE_LETTER.findall(text)
+    return letters[-1] if letters else None
+
+
+def judge_mcq(expected: str, text: str) -> bool:
+    return mcq_letter(text) == expected
+
+
 @functools.lru_cache(maxsize=8192)
 def judge_code(tests: str, code: str) -> bool:
     """Run candidate code plus its tests in a separate, isolated interpreter.
@@ -71,4 +94,6 @@ def judge(problem: Problem, answer: Answer) -> bool:
         return judge_code(problem.answer, answer.text)
     if problem.domain == "qa":
         return judge_qa(problem.answer, answer.text)
+    if problem.domain == "mcq":
+        return judge_mcq(problem.answer, answer.text)
     raise ValueError(f"unknown domain {problem.domain!r}")

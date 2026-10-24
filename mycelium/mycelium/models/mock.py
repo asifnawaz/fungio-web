@@ -17,7 +17,7 @@ import numpy as np
 
 from mycelium.evals.datasets import CODE_TASKS, fake_name, stable_seed
 from mycelium.models.base import RLCRSample
-from mycelium.types import DOMAINS, Answer, Hint, Problem
+from mycelium.types import DOMAINS, MCQ_LETTERS, Answer, Hint, Problem
 
 SFT_CEILING = 0.85
 
@@ -47,12 +47,19 @@ class MockModel:
         hint_gain: float = 0.4,
         conf_noise: float = 0.06,
         stop_confidence: float = 0.85,
+        family_skill: dict[str, float] | None = None,
+        dunning_kruger: float = 0.0,
     ):
         assert set(skill) == set(DOMAINS)
         self.name = name
         self.version = version
         self.cost_per_loop = cost_per_loop
         self.skill = dict(skill)
+        # Per-subject offsets on top of the domain skill (e.g. weak in chemistry).
+        self.family_skill = dict(family_skill or {})
+        # Extra overconfidence where the model is weak: the less it knows, the less it
+        # knows that it doesn't know.
+        self.dunning_kruger = dunning_kruger
         self.overconfidence = overconfidence
         self.awareness = awareness
         self.knowledge: set[str] = set()
@@ -69,6 +76,7 @@ class MockModel:
         if not problem.answerable:
             return 0.0
         x = self.skill[problem.domain] - problem.difficulty + self.loop_gain * (loops - 1)
+        x += self.family_skill.get(problem.family, 0.0)
         if problem.family in self.knowledge:
             x += self.known_bonus
         if hint is not None:
@@ -78,7 +86,8 @@ class MockModel:
 
     def _confidence(self, problem: Problem, p: float, z: float) -> float:
         if problem.answerable:
-            raw = p + self.overconfidence
+            weakness = max(0.0, -self.family_skill.get(problem.family, 0.0))
+            raw = p + self.overconfidence + self.dunning_kruger * weakness
         else:
             naive = _sigmoid(6 * (self.skill[problem.domain] - problem.difficulty))
             raw = (1 - self.awareness) * (naive + self.overconfidence) + self.awareness * 0.05
@@ -118,6 +127,13 @@ class MockModel:
         if problem.domain == "code":
             task = CODE_TASKS[problem.family.split(":", 1)[1]]
             return task.solution if correct else task.buggy
+        if problem.domain == "mcq":
+            if correct:
+                return problem.answer
+            # Wrong answers cluster on one attractive distractor, as with real students.
+            wrong = [letter for letter in MCQ_LETTERS[: len(problem.choices)] if letter != problem.answer]
+            attractive = wrong[stable_seed("distractor", problem.id) % len(wrong)]
+            return attractive if rng.random() < 0.6 else str(rng.choice(wrong))
         return problem.answer if correct else fake_name(rng, 2)
 
     # ---- training -----------------------------------------------------------
@@ -137,6 +153,10 @@ class MockModel:
         if answerable:
             gap = np.mean([s.answer.confidence - float(s.correct) for s in answerable])
             self.overconfidence -= lr * gap
+            weak = [s for s in answerable if self.family_skill.get(s.problem.family, 0.0) < 0]
+            if weak:
+                weak_gap = np.mean([s.answer.confidence - float(s.correct) for s in weak])
+                self.dunning_kruger = max(0.0, self.dunning_kruger - lr * weak_gap)
         if unanswerable:
             stated = np.mean([s.answer.confidence for s in unanswerable])
             self.awareness = float(np.clip(self.awareness + lr * stated, 0.0, 1.0))

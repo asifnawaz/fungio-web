@@ -29,7 +29,7 @@ into the same interfaces next.
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"            # add ",faiss" for the FAISS indexes
-pytest -q                          # 58 tests, ~35 s
+pytest -q                          # 72 tests, ~40 s
 python -m mycelium.cli e2e --out report.json
 python -m mycelium.cli e2e --index binary-ivf
 python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
@@ -90,6 +90,23 @@ day   accuracy  cost   teacher-only acc/cost   retrieve  escalate  golden  rollb
 ```
 
 Seeds 1–3 show the same pattern: from day 1 on, cost runs 35–45% below teacher-only at similar accuracy.
+
+### On real questions (`--suite real`)
+
+330 real questions committed under `mycelium/data/samples/` (MIT): 80 GSM8K word problems, and 250 MMLU questions across high-school and conceptual physics, high-school and elementary mathematics (incl. geometry), high-school and college biology, high-school chemistry, astronomy, medical genetics and high-school computer science. 40 fictional-entity questions are added so abstaining can be measured. Split: 50% train, 30% holdout, 20% golden.
+
+`--scenario complex` adds topic drift (a rotating group of subjects is 4× more frequent each day), a student that is most overconfident where it is weakest (chemistry and physics), and a teacher with a blind spot in chemistry.
+
+| Seed 0 | Basic | Complex |
+|---|---|---|
+| Student accuracy: baseline → distill → RLCR | 0.51 → 0.67 → 0.73 | 0.49 → 0.64 → 0.73 |
+| Student ECE: baseline → RLCR | 0.25 → 0.10 | 0.29 → 0.05 |
+| Mean cost, days 1–5 (HIKMAT vs teacher-only) | 15.7 vs 24.6 | 17.6 vs 30.5 |
+| Accuracy, days 1–5 (HIKMAT vs teacher-only) | 0.930 vs 0.955 | 0.930 vs 0.933 |
+| Golden accuracy without → with memory | 0.80 → 0.84 | 0.80 → 0.84 |
+| Quarantined poison / forced poison / tampering | rejected / rolled back / detected | same |
+
+Memory cuts cost by about 36–42% here. In the basic scenario it also costs about 2.5 points of accuracy against asking the teacher every time, so the trade isn't free and needs watching on real models. The test split holds only 3–7 questions per subject, so per-subject numbers in the report are noisy. The students and teacher are still simulated; only the questions are real.
 
 ## What we learned building it
 

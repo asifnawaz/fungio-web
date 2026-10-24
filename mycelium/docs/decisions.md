@@ -18,7 +18,14 @@ The "why" behind MYCELIUM, distilled from the design discussions with the owner 
 - **HIKMAT is not a semantic cache.** A semantic cache returns an old final answer for a similar question, which is wrong when the numbers differ. HIKMAT returns a verified *method* as a hint and the model solves the new problem. KV, prefix and prompt caches only help with token-identical prefixes and run inside the serving engine.
 - **Facts vs hypotheses.** Memory entries carry source, date, verification level (1 machine-checked, 2 source-checked, 3 consistency-only, 4 unverifiable) and expiry. Only levels 1–2 count as facts; level-2 facts need two independent confirmations.
 
+## Data decisions
+- **Real questions for quality claims.** GSM8K and MMLU (both MIT) samples are committed; ARC was skipped because CC-BY-SA would add share-alike terms to the data files. Synthetic problems remain for plumbing tests only.
+- **Samples came through the Hugging Face dataset viewer**, because this cloud container can't reach huggingface.co directly. The viewer flattens line breaks and escapes some Markdown characters; both are documented in `data/samples/ATTRIBUTION.md`. Two rows were spot-checked against the viewer independently.
+- **Stand-in HIKMAT keys for real questions** mix the subject's direction (0.92) with a hashed bag-of-words of the question (0.39), so same-subject questions are similar (> 0.75) and different subjects aren't. Real runs must replace this with hidden states (spec 002, T015).
+
 ## Measured negative results (keep, don't repeat)
+- **On real questions, memory cost ~2.5 accuracy points in the basic scenario** (0.930 vs 0.955 over days 1–5) while cutting cost ~36%. Not free; watch it with real models.
+- **The article "A" was parsed as option A** ("A planet orbits…" → A). Caught by a test; option letters now need punctuation after a leading letter, and a lone "A" followed by a lowercase word is ignored.
 - **Plain XOR scan in NumPy is slower than the float product** (2.8 ms vs 0.58 ms at 100k), because reranking needs the floats anyway. XOR only pays inside FAISS's IVF.
 - **Calibration is not discrimination.** A calibrated ~72%-accurate student sits near 0.7 confidence on many answers, so matching the teacher's honesty without memory saved almost no cost. Memory is what lifts confidence where it is earned.
 - **Self-consistency ("think") is the most expensive route** and was usually disabled by the tuner.

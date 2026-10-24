@@ -52,6 +52,10 @@ def main() -> None:
     e2e.add_argument("--seed", type=int, default=0)
     e2e.add_argument("--out", help="write the full JSON report here")
     e2e.add_argument("--index", choices=INDEX_KINDS, default="numpy", help="HIKMAT vector index")
+    e2e.add_argument("--suite", choices=["synthetic", "real"], default="synthetic",
+                     help="synthetic problems, or committed GSM8K + MMLU samples")
+    e2e.add_argument("--scenario", choices=["basic", "complex"], default="basic",
+                     help="complex: topic drift, overconfidence where weak, a teacher blind spot")
     e2e.add_argument("--teacher-url", help="OpenAI-compatible server for the teacher, e.g. http://localhost:8080")
     e2e.add_argument("--teacher-model", default="teacher", help="model name to send to the teacher server")
     e2e.add_argument("--teacher-cost", type=float, default=16.0, help="teacher cost per loop relative to the student")
@@ -91,7 +95,8 @@ def main() -> None:
         teacher = OpenAICompatBackend(
             args.teacher_url, args.teacher_model, cost_per_loop=args.teacher_cost, api_key=api_key
         )
-    report = run_e2e(E2EConfig(seed=args.seed, memory_index=args.index), teacher=teacher)
+    config = E2EConfig(seed=args.seed, memory_index=args.index, suite=args.suite, scenario=args.scenario)
+    report = run_e2e(config, teacher=teacher)
     print(_summary(report))
     if args.out:
         with open(args.out, "w") as f:
