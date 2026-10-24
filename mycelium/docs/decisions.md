@@ -32,7 +32,8 @@ The "why" behind MYCELIUM, distilled from the design discussions with the owner 
 
 
 ## Measured negative results (keep, don't repeat)
-- **A worked solution with its final answer is a harmful hint** (spec 003 run 1, untrained Qwen3.5-2B on GSM-Symbolic, 2026-10-24): accuracy 0.740 → 0.050, replies shrank from ~400 to ~17 tokens, and the model copied the donor's answer. Pre-registered verdict `kill` for that payload. HIKMAT payloads must never contain a final answer; method-only payloads are tested next (H1b).
+- **A worked solution with its final answer is a harmful hint** (spec 003 run 1, untrained Qwen3.5-2B on GSM-Symbolic, 2026-10-24): accuracy 0.740 → 0.050, replies shrank from ~400 to ~17 tokens, and the model copied the donor's answer. Pre-registered verdict `kill` for that payload. HIKMAT payloads must never contain a final answer.
+- **A method-only hint also hurt** (spec 003 run 2, same model): accuracy 0.740 → 0.510 with the same template's masked method, 0.540 with another template's. Verdict `kill`. The right method helped no more than a wrong one: for an untrained 2B model, extra hint text distracts. HIKMAT's future is now the owner's call (roadmap Q4).
 - **The 36–42% real-suite saving reported earlier was mostly an artifact.** The mock let an insight from one MMLU question help any question of the same subject. With facts no longer transferring, memory saves 5–11% vs teacher-only and costs 1.5–3.2 accuracy points (seed 0, days 1–5). See "Do insights work?".
 - **The mock once turned poison into help:** with a negative `hint_gain`, gain × (−1.5 wrong-family factor) was positive, and a harmful insight was promoted on the poison day. Wrong-family hints now carry a fixed penalty; a regression test covers it.
 - **"Does no harm" was not enough to promote an insight.** Insights that changed nothing were promoted and took space. The autopilot now requires a measurable gain (accuracy up or loops down) with no regression.

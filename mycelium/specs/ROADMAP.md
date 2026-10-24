@@ -29,7 +29,7 @@ On a machine without a GPU, take the first open `[CPU]` row instead; `[CPU]` row
 |---|---|---|---|---|---|
 | 1 | T001 Environment on the PC (Python, CUDA, llama.cpp, `pip install -e ".[dev,faiss]"`) | 002 | `[GPU]` | — | open |
 | 2 | T001b **Small-model baseline first**: serve the untrained student `Qwen3.5-2B-Q8_0.gguf` from `unsloth/Qwen3.5-2B-MTP-GGUF` (2.08 GB; `--reasoning off --spec-type draft-mtp -np 4`) and run `python -m mycelium.cli baseline` on the real and symbolic suites | 002 | `[GPU]` | 1 | done on the cloud CPU 2026-10-24 (numbers in spec 002 `research.md`); rerun on the PC only to record GPU speed |
-| 3 | T010a Kill test, first reading, on the same student server | 003 | `[GPU]` `[GATE]` | 2 | run 1 done (cloud CPU): `kill` for full-solution hints; H1b (method-only) running |
+| 3 | T010a Kill test, first reading, on the same student server | 003 | `[GPU]` `[GATE]` | 2 | done (cloud CPU): `kill` twice (full solution: 0.74 → 0.05; method only: 0.74 → 0.51); Q4 asked |
 | 4 | T002 Download the teacher GGUF (11.8 GB) | 002 | `[GPU]` | 1 | open |
 | 5 | T003 Serve the teacher; record VRAM and tokens/s | 002 | `[GPU]` | 4 | open |
 | 6 | T004 Real-teacher e2e run | 002 | `[GPU]` | 5 | open |
@@ -78,7 +78,7 @@ Why the small model comes first: it is the baseline every later number is compar
 - **Q2 (row 29):** "What should the separate repository be called, and under which GitHub account? I'll move `mycelium/` there with its history."
 - **Q3 (row 30):** "Which donation platform works for payouts in your country: GitHub Sponsors or Open Collective? Features stay free either way."
 - **Q5 (RSI gate):** "Self-training on its own verified solutions didn't improve the exam (numbers: …). Options: (a) drop RSI and rely on distillation + RLCR, (b) retry with the trained student and more data, (c) try teacher-checked problems instead of self-checked ones. Which one?"
-- **Q4 (gates):** "The kill test says hints don't help (numbers: …). Options: (a) drop HIKMAT memory and keep routing + calibration, (b) keep memory only for exact repeats (a cache), (c) try student-written insights or another payload format first (spec 003 T017). Which one?"
+- **Q4 (gates):** "The kill test says hints don't help (numbers: …). Options: (a) drop HIKMAT memory and keep routing + calibration, (b) keep memory only for exact repeats (a cache), (c) try student-written insights or another payload format first (spec 003 T017), (d) train the student on hinted examples so it learns to use hints, then rerun T010b. Which one?" — asked 2026-10-24 after run 2.
 
 ## Already decided (don't re-decide without new evidence; see `docs/decisions.md`)
 

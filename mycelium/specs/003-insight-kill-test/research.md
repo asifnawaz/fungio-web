@@ -46,6 +46,20 @@ Why: with the donor's worked solution in the prompt, the model stopped reasoning
 
 Same design, rules, verdict function and server settings as run 1. Only the payload changes: the donor's solution steps with every number replaced by a placeholder (`<a>`, `<b>`, …), no final answer, and an instruction to apply the steps to the new numbers (`--payload method`, `killtest.method_payload`). The `none` trials of run 1 are reused (same templates, variants, seed and server). If H1b is also `kill`, HIKMAT's hint payloads don't help this model and roadmap Q4 goes to the owner.
 
+### Run 2: H1b, method-only payload, 2026-10-24
+
+Same machine, server and command as run 1 plus `--payload method`; the 100 `none` trials of run 1 reused (~28 min for the 200 hinted trials).
+
+| Condition | Accuracy | Mean tokens |
+|---|---|---|
+| none | 0.740 | 396.4 |
+| same (method of the same template) | 0.510 | 299.3 |
+| other (method of another template) | 0.540 | 353.7 |
+
+same − none: accuracy −0.230 [−0.410, −0.080], tokens −24.5% [−52.7%, +11.5%]. other − none: accuracy −0.200 [−0.360, −0.050]. **Verdict (pre-registered rule): `kill`.**
+
+Reading: masking the numbers stopped the answer copying (replies are long again), but any hint still costs about 20 accuracy points, and the right template's method helps no more than a wrong one (0.51 vs 0.54). For this untrained 2B model a hint acts like an irrelevant clause, the effect GSM-Symbolic reported for added clauses. Per the roadmap gate, rows 4–15 continue and the owner decides on HIKMAT (Q4) before row 16. A trained student might use hints differently, which is why T010b exists; one option for Q4 is to train the student on hinted examples.
+
 ## Harness checks (mock and simulated teacher, 4-core Xeon container)
 
 Mock student, known parameters, `analyze` with the calibration fit (`python -c` runs in this session):
