@@ -2,6 +2,8 @@
 
 **Status:** Done · **Owner:** Asif · **Constitution:** `.specify/memory/constitution.md`
 
+Written before the Spec Kit templates were added to `.specify/templates/`; kept in its original shape because the work is finished. Later gaps are under "Convergence" in `tasks.md`. New specs use the templates (see spec 003).
+
 ## Why
 Before spending GPU time, prove that every stage of the system works together and that the safety gates fire. That means distillation, calibration, routing, memory and self-improvement, all runnable on a CPU in CI.
 

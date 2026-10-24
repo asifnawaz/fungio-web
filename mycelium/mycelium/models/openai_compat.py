@@ -126,6 +126,7 @@ class OpenAICompatBackend:
             confidence=parsed.confidence,
             loops=max(1, math.ceil(tokens / self.tokens_per_loop)),
             abstained=parsed.abstained,
+            tokens=int(tokens),
         )
 
     def _post(self, path: str, body: dict) -> dict:

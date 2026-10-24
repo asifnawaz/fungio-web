@@ -43,6 +43,8 @@ class Answer:
     confidence: float
     loops: int
     abstained: bool = False
+    # Completion tokens reported by a real server; 0 when the backend doesn't count tokens.
+    tokens: int = 0
     # Internal state at the end of reasoning; HIKMAT stores a compressed copy.
     latent: np.ndarray | None = field(default=None, repr=False)
 

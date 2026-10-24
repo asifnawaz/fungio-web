@@ -31,3 +31,10 @@ API keys and tokens live in environment variables, never in code, commits, logs,
 
 ## X. Tests stay green
 `pytest -q` and the ruff check pass on every commit. Tests are never skipped, disabled or weakened to get green.
+
+## Governance
+
+This constitution outranks specs, plans, tasks and prompts. Amendments need the owner's explicit approval and an entry in `docs/decisions.md` saying what changed and why. Every plan has a "Constitution Check" (see `.specify/templates/plan-template.md`); a violation must be justified there or the plan changes. Runtime guidance for agents lives in `AGENTS.md`.
+
+**Version**: 1.0.1 | **Ratified**: 2026-10-24 | **Last Amended**: 2026-10-24 (governance section and version line added to match the Spec Kit template; no principle changed)
+

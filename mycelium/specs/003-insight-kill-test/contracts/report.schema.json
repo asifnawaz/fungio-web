@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HIKMAT kill test report",
+  "type": "object",
+  "required": [
+    "templates", "targets",
+    "acc_none", "acc_same", "acc_other",
+    "effort_none", "effort_same", "effort_other",
+    "d_acc_same", "d_acc_other", "d_effort_same", "d_effort_other",
+    "ci95", "mock_equivalents", "verdict"
+  ],
+  "properties": {
+    "templates": {"type": "integer", "minimum": 1, "maximum": 100},
+    "targets": {"type": "integer", "minimum": 1},
+    "acc_none": {"type": "number", "minimum": 0, "maximum": 1},
+    "acc_same": {"type": "number", "minimum": 0, "maximum": 1},
+    "acc_other": {"type": "number", "minimum": 0, "maximum": 1},
+    "effort_none": {"type": "number", "minimum": 0, "description": "mean completion tokens (loops for the mock)"},
+    "effort_same": {"type": "number", "minimum": 0},
+    "effort_other": {"type": "number", "minimum": 0},
+    "d_acc_same": {"type": "number"},
+    "d_acc_other": {"type": "number"},
+    "d_effort_same": {"type": "number", "description": "relative change against none"},
+    "d_effort_other": {"type": "number"},
+    "ci95": {
+      "type": "object",
+      "required": ["d_acc_same", "d_acc_other", "d_effort_same", "d_effort_other"],
+      "additionalProperties": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}
+    },
+    "mock_equivalents": {
+      "type": ["object", "null"],
+      "required": ["math_skill", "hint_gain", "hint_gain_ci95", "procedural_transfer"],
+      "properties": {
+        "math_skill": {"type": "number"},
+        "hint_gain": {"type": "number"},
+        "hint_gain_ci95": {"type": ["array", "null"], "items": {"type": "number"}},
+        "procedural_transfer": {"type": ["number", "null"]}
+      }
+    },
+    "verdict": {"enum": ["pays", "kill", "inconclusive"]}
+  }
+}

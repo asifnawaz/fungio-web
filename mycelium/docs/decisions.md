@@ -9,6 +9,8 @@ The "why" behind MYCELIUM, distilled from the design discussions with the owner 
 - **Free infrastructure.** Hugging Face for weights and packs, GitHub for code and CI, static site hosting for the web, volunteer GPUs for verification. No paid servers.
 
 ## Technical decisions
+- **Spec Kit templates are vendored** in `.specify/templates/` (github/spec-kit 1.2.4.dev0, MIT, license file included). New specs follow them; spec 001 keeps its original shape with a "Convergence" section; spec 002 was restructured to the template without changing its content or task IDs.
+- **Kill tests are pre-registered.** The HIKMAT kill test's verdict rule (spec 003 `research.md`, `killtest.verdict`) was written before any real data. Changing it needs a dated entry here and a fresh run.
 - **Teacher = Qwen3.8-27B GSQ-RCO `IQ3_S` GGUF (11.8 GB) on llama.cpp.** Task-lossless per its card and leaves VRAM on a 3090 for the student. DeepSeek-V4.1-Flash GSQ-RCO (231–266 GB with Engram tables) is too slow for bulk distillation on 24 GB + 32 GB RAM; kept as a Strata testbed.
 - **Student compression = GSQ + RCO**, replacing the earlier plan of native ternary (BitNet-style) training: post-training, cheaper, and RCO fits one model to several exact size budgets.
 - **Training = TRL + Unsloth or Liger, never both** (they patch the same kernels).
@@ -53,7 +55,7 @@ The question the owner asked, answered from the code and the `insights` sweep (n
 6. **The 16× teacher cost is an assumption.** It sets every saving. Real ratio = teacher tokens/s and price vs student; measure it on the GPU PC.
 7. **Thresholds are tuned without memory.** The router's emit threshold was tuned on the holdout with no memory, then memory changes the student's confidence. Re-tuning with memory live may recover accuracy; untested.
 
-**Decision:** keep HIKMAT, but treat it as a hypothesis. T015a (real student, GSM-Symbolic, same-template vs same-family hints) is the kill test: if a real hint doesn't raise accuracy or cut tokens on its own template, stop building memory features and rethink.
+**Decision:** keep HIKMAT, but treat it as a hypothesis. T015a (real student, GSM-Symbolic, same-template vs same-family hints; built as spec 003, `python -m mycelium.cli killtest`) is the kill test: if a real hint doesn't raise accuracy or cut tokens on its own template, stop building memory features and rethink.
 
 ## Research track (unscheduled; each needs a cheap kill test first)
 | Idea | One line | Precedent | Kill test |

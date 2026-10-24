@@ -5,8 +5,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from pathlib import Path
 
-from mycelium import insights
+from mycelium import insights, killtest
 from mycelium.bench import benchmark, format_rows
 from mycelium.models.openai_compat import OpenAICompatBackend
 from mycelium.pipeline import E2EConfig, run_e2e
@@ -80,10 +81,25 @@ def main() -> None:
     ins.add_argument("--gain", type=float, action="append", help="hint_gain values (repeat; default: a grid)")
     ins.add_argument("--transfer", type=float, action="append", help="procedural_transfer values (repeat)")
     ins.add_argument("--out", help="write the rows as JSON here")
+    kt = sub.add_parser("killtest", help="spec 003: does a stored verified method help a model on GSM-Symbolic?")
+    kt_backend = kt.add_mutually_exclusive_group(required=True)
+    kt_backend.add_argument("--url", help="OpenAI-compatible server of the model under test")
+    kt_backend.add_argument("--mock", action="store_true", help="the mock student (checks the harness, not a model)")
+    kt.add_argument("--model", default="student", help="model name to send to the server")
+    kt.add_argument("--api-key-env", help="environment variable holding the server's API key")
+    kt.add_argument("--templates", type=int, default=50, help="GSM-Symbolic templates to sample (max 100)")
+    kt.add_argument("--variants", type=int, default=10, help="target variants per template (max 49)")
+    kt.add_argument("--max-tokens", type=int, default=2048)
+    kt.add_argument("--seed", type=int, default=0)
+    kt.add_argument("--trials", help="append trials here as JSON lines; a rerun resumes from it")
+    kt.add_argument("--out", help="write the analysis as JSON here")
     args = parser.parse_args()
 
     if args.command == "bench":
         print(format_rows(benchmark(args.n, args.queries, kinds=args.index), args.n))
+        return
+    if args.command == "killtest":
+        _killtest(args, parser)
         return
     if args.command == "insights":
         base = E2EConfig(seed=args.seed, suite=args.suite, scenario=args.scenario)
@@ -122,6 +138,46 @@ def main() -> None:
     if args.out:
         with open(args.out, "w") as f:
             json.dump(report, f, indent=2, default=str)
+
+
+def _killtest(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if not 1 <= args.templates <= killtest.N_TEMPLATES or not 1 <= args.variants <= 49:
+        parser.error("--templates must be 1-100 and --variants 1-49")
+    if args.mock:
+        from mycelium.pipeline import make_student
+
+        backend, payload, unit = make_student(), killtest.tag_payload, "loops"
+    else:
+        api_key = os.environ.get(args.api_key_env) if args.api_key_env else None
+        if args.api_key_env and not api_key:
+            parser.error(f"environment variable {args.api_key_env} is not set")
+        backend = OpenAICompatBackend(args.url, args.model, tokens_per_loop=args.max_tokens, api_key=api_key)
+        payload, unit = killtest.solution_payload, "tokens"
+    total = args.templates * args.variants * len(killtest.CONDITIONS)
+    count = 0
+
+    def progress(_trial) -> None:
+        nonlocal count
+        count += 1
+        if count % 50 == 0 or count == total:
+            print(f"  {count}/{total} trials", flush=True)
+
+    trials = killtest.run(
+        backend,
+        templates=killtest.choose_templates(args.templates, args.seed),
+        variants=args.variants,
+        payload=payload,
+        # One "loop" = max_tokens for the HTTP backend, so max_loops=1 caps the reply length.
+        max_loops=8 if args.mock else 1,
+        seed=args.seed,
+        trials_path=Path(args.trials) if args.trials else None,
+        on_trial=progress,
+    )
+    report = killtest.analyze(trials, seed=args.seed)
+    print(killtest.format_report(report, unit))
+    if args.out:
+        with open(args.out, "w") as f:
+            json.dump(report, f, indent=2)
 
 
 if __name__ == "__main__":

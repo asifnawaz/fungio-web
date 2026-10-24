@@ -98,6 +98,11 @@ def load_gsm8k(path: Path | None = None) -> list[Problem]:
     return problems
 
 
+def read_gsm_symbolic_rows(path: Path | None = None) -> list[dict]:
+    """Apple's rows as they are, including the reference solution text."""
+    return _read_jsonl(path or SAMPLES_DIR / "gsm_symbolic.jsonl")
+
+
 def load_gsm_symbolic(
     path: Path | None = None, *, templates: int | None = None, per_template: int | None = None
 ) -> list[Problem]:
@@ -107,7 +112,7 @@ def load_gsm_symbolic(
     of each, so suites can stay small.
     """
     problems = []
-    for row in _read_jsonl(path or SAMPLES_DIR / "gsm_symbolic.jsonl"):
+    for row in read_gsm_symbolic_rows(path):
         if (templates is not None and row["id"] >= templates) or (
             per_template is not None and row["instance"] >= per_template
         ):

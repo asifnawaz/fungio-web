@@ -14,8 +14,10 @@ The project is free and open source, and will stay that way (intended license: A
 
 ## Status
 
-- **Done (spec 001):** full v0.1 pipeline on a mock student, with a mock, simulated-HTTP or real teacher, on synthetic problems, on real GSM8K + MMLU samples (`--suite real`) or on GSM-Symbolic + MMLU (`--suite symbolic`), in a basic or complex scenario (`--scenario complex`). 84 tests. Memory's benefit is measured by `python -m mycelium.cli insights` (an assumption sweep, not proof). See `specs/001-v0.1-pipeline/`.
-- **Next (spec 002):** real models on the owner's GPU PC. See `specs/002-real-models/tasks.md` and pick the first unchecked task. Once a real student runs, T015a (does a hint really help?) comes before any other HIKMAT work.
+- **Done (spec 001):** full v0.1 pipeline on a mock student, with a mock, simulated-HTTP or real teacher, on synthetic problems, on real GSM8K + MMLU samples (`--suite real`) or on GSM-Symbolic + MMLU (`--suite symbolic`), in a basic or complex scenario (`--scenario complex`). Memory's benefit is measured by `python -m mycelium.cli insights` (an assumption sweep, not proof). See `specs/001-v0.1-pipeline/`.
+- **Harness done, real run pending (spec 003):** the HIKMAT kill test on GSM-Symbolic (`python -m mycelium.cli killtest`). Decision rules are pre-registered in `specs/003-insight-kill-test/research.md`; don't change them after seeing a real result.
+- **Next (spec 002):** real models on the owner's GPU PC. See `specs/002-real-models/tasks.md` and pick the first unchecked task. Once a real student runs, T015a (= spec 003's real run) comes before any other HIKMAT work.
+- Tests: 96, about 60 s on 4 CPU cores.
 - **Research track (not scheduled):** see `docs/decisions.md` → "Research track".
 
 ## Layout
@@ -25,7 +27,9 @@ mycelium/
   AGENTS.md                 this file
   CLAUDE.md                 points Claude Code here
   .specify/memory/constitution.md   non-negotiable rules
-  specs/NNN-*/              spec.md, plan.md, research.md, tasks.md per feature
+  .specify/templates/       Spec Kit templates (spec, plan, tasks, checklist, constitution), MIT
+  specs/NNN-*/              spec.md, plan.md, research.md, data-model.md, quickstart.md,
+                            contracts/, checklists/, tasks.md per feature
   docs/decisions.md         decisions, rejected options, measured numbers
   mycelium/
     types.py                Problem, Answer, Hint
@@ -37,6 +41,7 @@ mycelium/
     evals/real.py           loaders for the committed GSM8K + MMLU samples
     data/samples/           330 GSM8K + MMLU questions (MIT) and GSM-Symbolic (5,000 rows, Apple license); see ATTRIBUTION.md there
     insights.py             sweep of the mock's hint assumptions vs a no-memory router
+    killtest.py             spec 003: does a stored verified method help a real model?
     bench.py cli.py
   scripts/fetch_datasets.py full GSM8K/MMLU download (needs Hugging Face access)
   tests/                    pytest, one file per module + end-to-end
@@ -56,6 +61,7 @@ python -m mycelium.cli sim-teacher --port 8080 &    # simulated HTTP teacher
 python -m mycelium.cli e2e --teacher-url http://localhost:8080 --teacher-model sim-qwen
 python -m mycelium.cli bench --n 1000000            # HIKMAT index speeds
 python -m mycelium.cli insights --suite symbolic    # does memory pay, under which hint assumptions
+python -m mycelium.cli killtest --mock              # spec 003 harness check; real run: --url http://localhost:8081
 ```
 
 Real teacher on the GPU PC: see README → "With a real teacher".
@@ -63,6 +69,8 @@ Real teacher on the GPU PC: see README → "With a real teacher".
 ## How to work here
 
 - Pick one task from the active `tasks.md`. Do it, tick it, and note anything learned in that spec's `research.md` or in `docs/decisions.md`.
+- New feature: follow the Spec Kit flow with the templates in `.specify/templates/` (README there): `spec.md` (prioritized user stories, FR-/SC- items) → `plan.md` (with the Constitution Check) → `tasks.md` (`T001 [P] [US1] …`) → implement → converge (check code against spec, plan and tasks; append gaps under "Convergence"). Spec 003 is a complete example.
+- Experiments that decide what to build next get their decision rule written into `research.md` before the data exists (see spec 003).
 - Write or update the test first, then the code. A task is done when `pytest -q` and the ruff command pass.
 - Keep changes small and in the style of the surrounding code: type hints, short docstrings that say *why*, no dead code.
 - New behavior that touches a real model must also work with the mock and the simulated teacher, so CI never needs a GPU.
