@@ -20,6 +20,11 @@ from mycelium.models.base import RLCRSample
 from mycelium.types import DOMAINS, MCQ_LETTERS, Answer, Hint, Problem
 
 SFT_CEILING = 0.85
+# Self-training (RSI) in the mock: learning rate per verified trace at the frontier, harm per
+# wrong trace, and forgetting of families left out of a batch (per 100 traces).
+SELF_PLAY_LR = 0.004
+WRONG_TRACE_HARM = 1.5
+FORGET_PER_100 = 0.004
 DEFAULT_FAMILY_TRANSFER = {"math": 0.25, "code": 0.25, "qa": 0.0, "mcq": 0.0}
 
 
@@ -162,6 +167,33 @@ class MockModel:
             gain = 0.35 * (1 - math.exp(-n / 150))
             self.skill[domain] += gain * max(0.0, SFT_CEILING - self.skill[domain])
         self.knowledge.update(p.family for p, _ in records)
+
+    def learn_self_play(self, records: list[tuple[Problem, str]]) -> None:
+        """Mock of training on its own solutions (STaR-style self-training).
+
+        A correct trace teaches most when the model solves that problem about half the time
+        (4p(1-p)) and nothing when it always or never does, so gains shrink as it improves.
+        A wrong trace teaches the mistake (the model-collapse path, and confident wrong
+        traces raise overconfidence). Families left out of the batch slowly fade. Like the
+        rest of this mock, these rules are assumptions to test the RSI gates with, not
+        evidence that self-training works.
+        """
+        from mycelium.evals.judges import judge
+
+        trained: set[str] = set()
+        overconfident_errors = 0
+        for problem, text in records:
+            p = self.p_correct(problem, loops=1)
+            correct = judge(problem, Answer(text=text, confidence=0.5, loops=1))
+            delta = SELF_PLAY_LR * 4 * p * (1 - p) if correct else -SELF_PLAY_LR * WRONG_TRACE_HARM
+            self.family_skill[problem.family] = self.family_skill.get(problem.family, 0.0) + delta
+            trained.add(problem.family)
+            overconfident_errors += not correct
+        forget = FORGET_PER_100 * len(records) / 100
+        for family in (self.knowledge | set(self.family_skill)) - trained:
+            self.family_skill[family] = self.family_skill.get(family, 0.0) - forget
+        if records:
+            self.overconfidence += 0.1 * overconfident_errors / len(records)
 
     def learn_rlcr(self, samples: list[RLCRSample], lr: float = 0.5) -> None:
         # Mock policy update: move stated confidence toward empirical correctness, which

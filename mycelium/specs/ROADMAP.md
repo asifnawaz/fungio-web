@@ -38,11 +38,13 @@ On a machine without a GPU, take the first open `[CPU]` row instead; `[CPU]` row
 | 9 | T009 Second, independent JUDGE for math and QA | 002 | `[CPU]` | — | open |
 | 10 | T007 Container sandbox for the code JUDGE (needs Docker) | 002 | `[CPU]` | — | open |
 | 11 | T010 `HFStudent` backend for `Qwen/Qwen3.5-2B` (contract: `specs/002-real-models/contracts/student-backend.md`) | 002 | `[CPU]` (tiny-model test) then `[GPU]` | — | open |
+| 11a | T009–T011 **RSI kill test**, two STaR-style generations on the base student | 006 | `[GPU]` `[GATE]` | 11 | open |
 | 12 | T011 SFT on verified teacher traces | 002 | `[GPU]` | 6, 11 | open |
 | 13 | T012 Top-k logit distillation | 002 | `[GPU]` | 12 | open |
 | 14 | T013 GRPO with the RLCR reward | 002 | `[GPU]` | 13 | open |
 | 15 | T014 Full pipeline: real student + real teacher; compare with row 2's baseline | 002 | `[GPU]` | 14, 7–10 | open |
 | 16 | T010b Kill test with the trained student (= 002 T015a) | 003 | `[GPU]` `[GATE]` | 14 | open |
+| 16a | T013 RSI with the trained student | 006 | `[GPU]` `[GATE]` | 14, 11a ≠ `kill` | open |
 | 17 | T013 Price the effect with `insights` | 003 | `[CPU]` | 16 | open |
 | 18 | T015 Hidden-state HIKMAT keys | 002 | `[GPU]` | 16 = `pays` | open |
 | 19 | T016 Method-text payloads, HIKMAT days on real problems | 002 | `[GPU]` | 18 | open |
@@ -58,6 +60,7 @@ On a machine without a GPU, take the first open `[CPU]` row instead; `[CPU]` row
 | 29 | T024 Own repository for `mycelium/` | 002 | `[OWNER]` | 28 | open |
 | 30 | T026 Optional donation link | 002 | `[OWNER]` | 29 | open |
 | 31 | Spec 004 On-device (phones) | 004 | Draft | 22, 23 | blocked |
+| — | Spec 006 RSI mock loop (`python -m mycelium.cli rsi`) | 006 | `[CPU]` | — | done |
 | 32 | Spec 005 Insight-sharing hub | 005 | Draft, `[OWNER]` | 19 and 16 = `pays` | blocked |
 | 33 | Research track (FOLD, CODON latent language, INNER-SPROUT, …) | `docs/decisions.md` | `[OWNER]` | — | unscheduled |
 
@@ -66,6 +69,7 @@ Why the small model comes first: it is the baseline every later number is compar
 ## Gates
 
 - **Row 3 (first reading).** `pays` or `inconclusive`: continue the queue as is. `kill`: continue rows 4–15 (the student is needed anyway), but before row 16 ask the owner whether HIKMAT stays in scope (Q4).
+- **Row 11a (RSI, base student).** `pays`: continue, and add spec 006 T012 (self-proposed problems) after row 16a. `plateau`: continue; try the other recipes in row 16a. `kill`: skip row 16a, record it, ask Q5.
 - **Row 16 (trained student).** `pays`: rows 17–21. `inconclusive`: rerun with `--templates 100` before anything else. `kill`: mark rows 18–21 `dropped`, record it in `docs/decisions.md`, ask Q4.
 
 ## Questions for the owner (ask exactly these, then record the answer in `docs/decisions.md`)
@@ -73,6 +77,7 @@ Why the small model comes first: it is the baseline every later number is compar
 - **Q1 (row 28):** "Should I add the full AGPL-3.0-or-later license text and SPDX headers now? This makes the license final for everything committed so far."
 - **Q2 (row 29):** "What should the separate repository be called, and under which GitHub account? I'll move `mycelium/` there with its history."
 - **Q3 (row 30):** "Which donation platform works for payouts in your country: GitHub Sponsors or Open Collective? Features stay free either way."
+- **Q5 (RSI gate):** "Self-training on its own verified solutions didn't improve the exam (numbers: …). Options: (a) drop RSI and rely on distillation + RLCR, (b) retry with the trained student and more data, (c) try teacher-checked problems instead of self-checked ones. Which one?"
 - **Q4 (gates):** "The kill test says hints don't help (numbers: …). Options: (a) drop HIKMAT memory and keep routing + calibration, (b) keep memory only for exact repeats (a cache), (c) try student-written insights or another payload format first (spec 003 T017). Which one?"
 
 ## Already decided (don't re-decide without new evidence; see `docs/decisions.md`)

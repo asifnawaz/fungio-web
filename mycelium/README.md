@@ -29,7 +29,7 @@ into the same interfaces next.
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"            # add ",faiss" for the FAISS indexes
-pytest -q                          # 99 tests, ~60 s
+pytest -q                          # 109 tests, ~60 s
 python -m mycelium.cli e2e --out report.json
 python -m mycelium.cli e2e --index binary-ivf
 python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
@@ -143,6 +143,12 @@ What this shows: useless and harmful insights are rejected (that is what the aut
 (saving per question / Δaccuracy; no-memory router: cost 22.7, accuracy 0.89; teacher-only: 27.6, 0.943.) With repeating methods, memory improves cost and accuracy together, unlike on plain GSM8K. It is still the assumed `hint_gain` doing the work; T015a replaces it with a measurement.
 
 **The kill test (spec 003).** `python -m mycelium.cli killtest --url http://localhost:8081 --model student` takes 50 GSM-Symbolic templates, uses variant 0's verified solution as the stored insight, and solves 10 new variants of each three ways: no hint, the insight from the same template, and the insight from a different template of the same size. It reports accuracy and tokens per condition, paired differences with 95% intervals (bootstrap over templates), the mock parameters that reproduce the result, and a verdict (`pays`, `kill`, `inconclusive`) decided by rules written in `specs/003-insight-kill-test/research.md` before any real run. On the mock (`--mock`, true `hint_gain` 0.4) it reports `pays` and a fitted `hint_gain` of 0.38 [0.32, 0.45]. It has not run on a real model yet: this container can't download model weights. Weaknesses that remain in this simulation are listed in `docs/decisions.md` → "Do insights work?".
+
+### Recursive self-improvement (spec 006)
+
+`python -m mycelium.cli rsi` runs a self-improvement loop on the weights, not just the memory. Each generation the model attempts fresh math and code problems, keeps the ones at its frontier, trains a copy on its own verified solutions (plus some teacher traces as an anchor), and the copy replaces it only if its exam gain (golden set + held-out problems it never trains on) has a 95% lower bound above zero and hallucination doesn't rise. It stops on a plateau, or when its own problems improve but the exam doesn't (Goodhart). A bandit picks the next recipe (difficulty band, breadth) by measured exam gain: the loop improves how it improves, but can't touch JUDGE, the golden set or the gates.
+
+Mock, seed 0: exam accuracy 0.778 → 0.972 in 8 generations (4 promoted). With a verifier that keeps only wrong traces nothing is promoted; with no verifier at all, rounds with many wrong traces are rejected and the model never ends worse. The gains come from the mock's learning rule; whether self-training helps a real 2B model is the pre-registered kill test in `specs/006-rsi/research.md`.
 
 ## What we learned building it
 

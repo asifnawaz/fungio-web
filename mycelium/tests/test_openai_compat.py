@@ -88,3 +88,33 @@ def test_http_errors_become_backend_errors(server):
         OpenAICompatBackend(server["url"], "m").answer(_problem(), max_loops=1)
     with pytest.raises(BackendError):
         OpenAICompatBackend("http://127.0.0.1:9", "m", timeout_s=2).answer(_problem(), max_loops=1)
+
+
+def test_system_prompt_fits_the_domain(server):
+    # A single prompt that mentioned code made Qwen3.5-2B answer math with "see code".
+    for domain in ("math", "code", "mcq"):
+        server["replies"].append(("ANSWER: 42\nCONFIDENCE: 0.9", 10))
+        OpenAICompatBackend(server["url"], "m").answer(_problem(domain), max_loops=1)
+    prompts = [r["body"]["messages"][0]["content"] for r in server["requests"]]
+    assert "code" not in prompts[0] and "python" in prompts[1] and "letter" in prompts[2]
+
+
+def test_reply_routed_to_reasoning_content_is_still_read(server):
+    server["replies"].append(("", 50))
+    # Re-shape the stand-in reply: empty content, answer only in reasoning_content.
+    backend = OpenAICompatBackend(server["url"], "m")
+    original = backend._post
+    backend._post = lambda path, body: {
+        **original(path, body),
+        "choices": [{"message": {"content": "", "reasoning_content": "thinking...\nANSWER: 42\nCONFIDENCE: 0.8"}}],
+    }
+    answer = backend.answer(_problem(), max_loops=1)
+    assert (answer.text, answer.confidence) == ("42", 0.8)
+
+
+def test_unlabelled_answer_and_probability_lines():
+    # Seen from Qwen3.5-2B on MMLU: "A\n0.9999999999999999" with no ANSWER/CONFIDENCE labels.
+    parsed = parse_reply("A\n0.9999999999999999", "mcq")
+    assert parsed.text == "A" and parsed.confidence > 0.99
+    # A final number alone is the answer, not a confidence.
+    assert parse_reply("6 times 7 is\n42", "math").text == "42"

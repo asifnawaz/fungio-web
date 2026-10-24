@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from mycelium import baseline, doctor, insights, killtest
+from mycelium import baseline, doctor, insights, killtest, rsi
 from mycelium.bench import benchmark, format_rows
 from mycelium.models.openai_compat import OpenAICompatBackend
 from mycelium.pipeline import E2EConfig, run_e2e
@@ -101,6 +101,12 @@ def main() -> None:
     base.add_argument("--max-tokens", type=int, default=2048)
     base.add_argument("--seed", type=int, default=0)
     base.add_argument("--out", help="write the report as JSON here")
+    rs = sub.add_parser("rsi", help="recursive self-improvement loop on the mock student (spec 006)")
+    rs.add_argument("--generations", type=int, default=8)
+    rs.add_argument("--verify", choices=["judge", "off", "inverted"], default="judge",
+                    help="judge: keep verified traces; off/inverted: broken-verifier tests")
+    rs.add_argument("--seed", type=int, default=0)
+    rs.add_argument("--out", help="write the report as JSON here")
     doc = sub.add_parser("doctor", help="what this machine can run ([CPU] / [GPU] roadmap tasks)")
     doc.add_argument("--network", action="store_true", help="also check that huggingface.co is reachable")
     args = parser.parse_args()
@@ -115,6 +121,12 @@ def main() -> None:
         backend = OpenAICompatBackend(args.url, args.model, tokens_per_loop=args.max_tokens, api_key=api_key)
         report = baseline.run_baseline(backend, E2EConfig(seed=args.seed, suite=args.suite))
         print(baseline.format_baseline(report))
+        if args.out:
+            _write_json(args.out, report)
+        return
+    if args.command == "rsi":
+        report = rsi.run_rsi(rsi.RSIConfig(generations=args.generations, verify=args.verify, seed=args.seed))
+        print(rsi.format_rsi(report))
         if args.out:
             _write_json(args.out, report)
         return

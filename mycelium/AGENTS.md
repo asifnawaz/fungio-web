@@ -24,8 +24,9 @@ The project is free and open source, and will stay that way (intended license: A
 - **Done (spec 001):** full v0.1 pipeline on a mock student, with a mock, simulated-HTTP or real teacher, on synthetic problems, on real GSM8K + MMLU samples (`--suite real`) or on GSM-Symbolic + MMLU (`--suite symbolic`), in a basic or complex scenario (`--scenario complex`). Memory's benefit is measured by `python -m mycelium.cli insights` (an assumption sweep, not proof). See `specs/001-v0.1-pipeline/`.
 - **Harness done, real run pending (spec 003):** the HIKMAT kill test on GSM-Symbolic (`python -m mycelium.cli killtest`). Decision rules are pre-registered in `specs/003-insight-kill-test/research.md`; don't change them after seeing a real result.
 - **Next (spec 002):** real models on the owner's GPU PC. See `specs/002-real-models/tasks.md` and pick the first unchecked task. Once a real student runs, T015a (= spec 003's real run) comes before any other HIKMAT work.
+- **RSI (spec 006):** recursive self-improvement loop done on the mock (`python -m mycelium.cli rsi`): verified self-traces at the frontier, train a copy, promote only on a clear exam gain, plateau and Goodhart stops, a recipe bandit. Real kill test pre-registered in `specs/006-rsi/research.md` (roadmap row 11a).
 - **Later (drafts, blocked):** spec 004 (phones and laptops), spec 005 (insight-sharing hub). Don't build them before their gates in `specs/ROADMAP.md`.
-- Tests: 99, about 60 s on 4 CPU cores.
+- Tests: 109, about 60 s on 4 idle CPU cores.
 - **Research track (not scheduled):** see `docs/decisions.md` → "Research track".
 
 ## Layout
@@ -53,6 +54,7 @@ mycelium/
     killtest.py             spec 003: does a stored verified method help a real model?
     doctor.py               what this machine can run (GPU, VRAM, disk, tools)
     baseline.py             P0 on real hardware: one model alone on a real suite's holdout
+    rsi.py                  spec 006: recursive self-improvement loop with exam gate
     bench.py cli.py
   scripts/fetch_datasets.py full GSM8K/MMLU download (needs Hugging Face access)
   tests/                    pytest, one file per module + end-to-end
@@ -75,6 +77,7 @@ python -m mycelium.cli bench --n 1000000            # HIKMAT index speeds
 python -m mycelium.cli insights --suite symbolic    # does memory pay, under which hint assumptions
 python -m mycelium.cli killtest --mock              # spec 003 harness check; real run: --url http://localhost:8081
 python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b   # P0 on the PC: small model alone, first
+python -m mycelium.cli rsi                          # spec 006 RSI loop on the mock
 ```
 
 Real teacher on the GPU PC: see README → "With a real teacher".

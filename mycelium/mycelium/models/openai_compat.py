@@ -3,7 +3,8 @@
 Works with llama.cpp's `llama-server`, vLLM, SGLang, Ollama and LM Studio, so a real
 teacher (for example a GSQ-RCO GGUF of Qwen3.8-27B on a 3090) plugs into the same
 pipeline as the mock. The model is asked to end with an ANSWER line and a CONFIDENCE
-line, the verbalized confidence format RLCR trains for.
+line, the verbalized confidence format RLCR trains for. The system prompt depends on the
+domain, so code instructions never reach a math question.
 
 Mapping to the pipeline's units: one "loop" is `tokens_per_loop` completion tokens, so
 cost tracks how much the model actually generated. `stop_at` cannot be enforced through
@@ -21,15 +22,26 @@ from dataclasses import dataclass
 
 from mycelium.types import Answer, Hint, Problem
 
-SYSTEM_PROMPT = (
+_FORMAT = (
     "Solve the task. End your reply with exactly these two lines:\n"
-    "ANSWER: <final answer only>\n"
+    "ANSWER: {answer}\n"
     "CONFIDENCE: <probability from 0 to 1 that your answer is correct>\n"
-    "For coding tasks, put the complete function in a ```python code block before those lines "
-    "and write `ANSWER: see code`.\n"
-    "If the question cannot be answered from what you know, write `ANSWER: I don't know` "
-    "and a low confidence."
 )
+_ABSTAIN_RULE = "If the question cannot be answered from what you know, write `ANSWER: I don't know` and a low confidence."
+# One prompt per domain. A single prompt that mentioned code for every task made a real 2B
+# model (Qwen3.5-2B) answer math questions with `ANSWER: see code`.
+SYSTEM_PROMPTS = {
+    "math": _FORMAT.format(answer="<the final number only>") + _ABSTAIN_RULE,
+    "code": _FORMAT.format(answer="see code")
+    + "Put the complete function in a ```python code block before those two lines.\n" + _ABSTAIN_RULE,
+    "mcq": _FORMAT.format(answer="<the letter of the correct option only>") + _ABSTAIN_RULE,
+    "qa": _FORMAT.format(answer="<the answer only>") + _ABSTAIN_RULE,
+}
+SYSTEM_PROMPT = SYSTEM_PROMPTS["qa"]
+
+
+def system_prompt(domain: str) -> str:
+    return SYSTEM_PROMPTS.get(domain, SYSTEM_PROMPT)
 DEFAULT_CONFIDENCE = 0.5
 _ANSWER = re.compile(r"^\s*ANSWER:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
 _CONFIDENCE = re.compile(r"^\s*CONFIDENCE:\s*([0-9]*\.?[0-9]+)\s*(%?)", re.IGNORECASE | re.MULTILINE)
@@ -48,10 +60,20 @@ class ParsedReply:
     abstained: bool
 
 
+_BARE_PROBABILITY = re.compile(r"^\s*([0-9]*\.?[0-9]+)\s*(%?)\s*$")
+
+
 def parse_reply(content: str, domain: str) -> ParsedReply:
     answers = _ANSWER.findall(content)
-    answer = answers[-1] if answers else content.strip().splitlines()[-1] if content.strip() else ""
     confidences = _CONFIDENCE.findall(content)
+    lines = [line for line in content.strip().splitlines() if line.strip()]
+    # Only where an answer can't itself be a number in [0, 1] (unlike math).
+    unlabelled = not answers and not confidences and len(lines) >= 2 and domain in ("mcq", "qa")
+    bare = _BARE_PROBABILITY.match(lines[-1]) if unlabelled else None
+    if bare and float(bare.group(1)) <= (100 if bare.group(2) else 1):
+        # Small models sometimes drop both labels and end with "<answer>\n<probability>".
+        answers, confidences = [lines[-2].strip()], [bare.groups()]
+    answer = answers[-1] if answers else lines[-1] if lines else ""
     if confidences:
         value, percent = confidences[-1]
         confidence = float(value) / (100 if percent else 1)
@@ -101,7 +123,10 @@ class OpenAICompatBackend:
         sample: int = 0,
         stop_at: float | None = None,
     ) -> Answer:
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": problem.prompt}]
+        messages = [
+            {"role": "system", "content": system_prompt(problem.domain)},
+            {"role": "user", "content": problem.prompt},
+        ]
         if hint is not None:
             messages.append(
                 {"role": "user", "content": f"A verified approach for a similar problem (similarity {hint.similarity:.2f}): {hint.text}"}
@@ -116,9 +141,14 @@ class OpenAICompatBackend:
         }
         reply = self._post("/v1/chat/completions", body)
         try:
-            content = reply["choices"][0]["message"]["content"] or ""
-        except (KeyError, IndexError, TypeError) as exc:
+            message = reply["choices"][0]["message"]
+            content = message.get("content") or ""
+        except (KeyError, IndexError, TypeError, AttributeError) as exc:
             raise BackendError(f"unexpected response shape from {self.base_url}: {reply!r:.200}") from exc
+        if not content.strip():
+            # llama-server can route a thinking model's whole reply into `reasoning_content`
+            # (seen with a Qwen3.5-2B GGUF unless the server runs with `--reasoning off`).
+            content = message.get("reasoning_content") or ""
         tokens = reply.get("usage", {}).get("completion_tokens") or max(1, len(content) // 4)
         parsed = parse_reply(content, problem.domain)
         return Answer(
