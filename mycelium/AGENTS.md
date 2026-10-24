@@ -10,12 +10,12 @@ MYCELIUM is a small language model system that:
 3. **improves itself without a human babysitting it** (autopilot: quarantine → shadow test → promote, with automatic rollback),
 4. runs on modest hardware (target: one RTX 3090 24 GB + 32 GB RAM, later phones).
 
-The project is free and open source, and will stay that way (intended license: AGPL-3.0-or-later). The owner is Asif. He writes in Roman Urdu and English, and prefers replies in Roman Urdu that start with "Asif".
+The project is free and open source, and will stay that way (intended license: AGPL-3.0-or-later). The owner is Asif. Asif writes in Roman Urdu and English, and prefers replies in Roman Urdu that start with "Asif".
 
 ## Status
 
-- **Done (spec 001):** full v0.1 pipeline on a mock student, with a mock, simulated-HTTP or real teacher, on synthetic problems or on real GSM8K + MMLU samples (`--suite real`), in a basic or complex scenario (`--scenario complex`). 72 tests. See `specs/001-v0.1-pipeline/`.
-- **Next (spec 002):** real models on the owner's GPU PC. See `specs/002-real-models/tasks.md` and pick the first unchecked task.
+- **Done (spec 001):** full v0.1 pipeline on a mock student, with a mock, simulated-HTTP or real teacher, on synthetic problems or on real GSM8K + MMLU samples (`--suite real`), in a basic or complex scenario (`--scenario complex`). 81 tests. Memory's benefit is measured by `python -m mycelium.cli insights` (an assumption sweep, not proof). See `specs/001-v0.1-pipeline/`.
+- **Next (spec 002):** real models on the owner's GPU PC. See `specs/002-real-models/tasks.md` and pick the first unchecked task. Once a real student runs, T015a (does a hint really help?) comes before any other HIKMAT work.
 - **Research track (not scheduled):** see `docs/decisions.md` → "Research track".
 
 ## Layout
@@ -36,6 +36,7 @@ mycelium/
     sim_teacher.py          simulated teacher on an OpenAI-compatible HTTP endpoint
     evals/real.py           loaders for the committed GSM8K + MMLU samples
     data/samples/           330 real questions (MIT), see ATTRIBUTION.md there
+    insights.py             sweep of the mock's hint assumptions vs a no-memory router
     bench.py cli.py
   scripts/fetch_datasets.py full GSM8K/MMLU download (needs Hugging Face access)
   tests/                    pytest, one file per module + end-to-end
@@ -54,6 +55,7 @@ python -m mycelium.cli e2e --suite real --scenario complex   # real GSM8K + MMLU
 python -m mycelium.cli sim-teacher --port 8080 &    # simulated HTTP teacher
 python -m mycelium.cli e2e --teacher-url http://localhost:8080 --teacher-model sim-qwen
 python -m mycelium.cli bench --n 1000000            # HIKMAT index speeds
+python -m mycelium.cli insights --suite real        # does memory pay, under which hint assumptions
 ```
 
 Real teacher on the GPU PC: see README → "With a real teacher".

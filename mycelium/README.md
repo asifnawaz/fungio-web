@@ -29,10 +29,11 @@ into the same interfaces next.
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"            # add ",faiss" for the FAISS indexes
-pytest -q                          # 72 tests, ~40 s
+pytest -q                          # 81 tests, ~50 s
 python -m mycelium.cli e2e --out report.json
 python -m mycelium.cli e2e --index binary-ivf
 python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
+python -m mycelium.cli insights --suite real   # does memory pay? sweep of hint assumptions (~4 min)
 ```
 
 ### With a real teacher
@@ -83,13 +84,13 @@ teacher          0.889       0.034  0.056
 
 P4 HIKMAT (golden accuracy without memory: 0.689)
 day   accuracy  cost   teacher-only acc/cost   retrieve  escalate  golden  rollback
-  0   0.917     46.5  0.925 /  42.9        0.00      0.91      0.811   False
-  1   0.975     34.3  0.950 /  40.9        0.33      0.61      0.811   False
+  0   0.917     46.5  0.925 /  42.9        0.00      0.91      0.750   False
+  1   0.967     36.8  0.950 /  40.9        0.27      0.68      0.750   False
   ...
-  3   0.908     32.4  0.908 /  38.4        0.36      0.62      0.811   True   <- poison rolled back
+  3   0.900     34.0  0.908 /  38.4        0.33      0.65      0.750   True   <- poison rolled back
 ```
 
-Seeds 1–3 show the same pattern: from day 1 on, cost runs 35–45% below teacher-only at similar accuracy.
+Days 1–5, seed 0: cost 36.3 vs 42.7 for teacher-only, accuracy 0.908 vs 0.898. Seeds 1–3: cost 28.2–31.9 vs 41.8–43.2, accuracy 0.902–0.918 vs 0.895–0.907. These savings rest on an assumed hint effect; see "Do insights work?" below.
 
 ### On real questions (`--suite real`)
 
@@ -101,12 +102,32 @@ Seeds 1–3 show the same pattern: from day 1 on, cost runs 35–45% below teach
 |---|---|---|
 | Student accuracy: baseline → distill → RLCR | 0.51 → 0.67 → 0.73 | 0.49 → 0.64 → 0.73 |
 | Student ECE: baseline → RLCR | 0.25 → 0.10 | 0.29 → 0.05 |
-| Mean cost, days 1–5 (HIKMAT vs teacher-only) | 15.7 vs 24.6 | 17.6 vs 30.5 |
-| Accuracy, days 1–5 (HIKMAT vs teacher-only) | 0.930 vs 0.955 | 0.930 vs 0.933 |
-| Golden accuracy without → with memory | 0.80 → 0.84 | 0.80 → 0.84 |
+| Router alone (tuned on holdout) | no cheaper than the teacher → `teacher_only` | same |
+| Mean cost, days 1–5: HIKMAT / same router without memory / teacher-only | 22.0 / 26.3 / 24.6 | 29.1 / 32.4 / 30.5 |
+| Accuracy, days 1–5: HIKMAT / without memory / teacher-only | 0.923 / 0.950 / 0.955 | 0.918 / 0.932 / 0.933 |
+| Hinted answers whose insight came from the same question | 57% | 55% |
+| Golden accuracy without → with memory | 0.80 → 0.81 | 0.80 → 0.81 |
 | Quarantined poison / forced poison / tampering | rejected / rolled back / detected | same |
 
-Memory cuts cost by about 36–42% here. In the basic scenario it also costs about 2.5 points of accuracy against asking the teacher every time, so the trade isn't free and needs watching on real models. The test split holds only 3–7 questions per subject, so per-subject numbers in the report are noisy. The students and teacher are still simulated; only the questions are real.
+With the default assumption (`hint_gain` 0.4), memory makes the system 5–11% cheaper than asking the teacher every time (the router alone is 6–7% more expensive), and it costs 1.5–3.2 points of accuracy. The accuracy loss is the router answering more questions itself: its thresholds are tuned to reach 90% of the teacher's accuracy, and memory moves it toward that floor. The test split holds only 3–7 questions per subject, so per-subject numbers are noisy. The students and teacher are simulated; only the questions are real.
+
+An earlier version reported 36–42% savings here. That number assumed an insight from one MMLU question helps on a different question of the same subject. It doesn't (one astronomy fact doesn't answer another astronomy question), and with that removed most of the saving went away.
+
+### Do insights work?
+
+Short answer: the machinery works, the benefit is unproven. The mock student is *told* how much a hint helps (`hint_gain`) and how much of that carries to a different problem of the same family (`procedural_transfer`), so a single run can't show that insights help. `python -m mycelium.cli insights --suite real` sweeps both and compares against the same router without memory (seed 0, days 1–5):
+
+| `hint_gain` | Synthetic: Δcost / Δaccuracy | Real basic: Δcost / Δaccuracy | Real complex: Δcost / Δaccuracy | Promoted (real basic) |
+|---|---|---|---|---|
+| −0.2 (hints hurt) | −0.1 / 0 | −0.1 / 0 | −0.1 / 0 | 0 |
+| 0 (hints do nothing) | −0.1 / 0 | −0.1 / 0 | −0.1 / 0 | 2 * |
+| 0.1 | +0.8 / 0 | +0.9 / 0 | +0.7 / 0 | 110 |
+| 0.2 | +3.1 / +0.005 | +2.4 / −0.013 | +1.2 / 0 | 144 |
+| 0.4 (default) | +9.9 / +0.013 | +4.4 / −0.027 | +3.3 / −0.013 | 162 |
+
+Δcost is the saving per question vs the same router without memory (positive = cheaper); Δaccuracy is HIKMAT minus no-memory. `procedural_transfer` (0, 0.25, 0.5) changed real-suite savings by at most 0.5 and synthetic ones not at all. \* On the poison day, a correct insight that displaces a forced-in bad one helps, so it is promoted.
+
+What this shows: useless and harmful insights are rejected (that is what the autopilot is for), and memory pays only as much as hints really help: at `hint_gain` 0.1 the saving is under 1 per question (about 4%). Whether it does is the first thing spec 002 measures (task T015a: GSM-Symbolic templates, 50 variants each). Weaknesses that remain in this simulation are listed in `docs/decisions.md` → "Do insights work?".
 
 ## What we learned building it
 

@@ -24,12 +24,34 @@ The "why" behind MYCELIUM, distilled from the design discussions with the owner 
 - **Stand-in HIKMAT keys for real questions** mix the subject's direction (0.92) with a hashed bag-of-words of the question (0.39), so same-subject questions are similar (> 0.75) and different subjects aren't. Real runs must replace this with hidden states (spec 002, T015).
 
 ## Measured negative results (keep, don't repeat)
-- **On real questions, memory cost ~2.5 accuracy points in the basic scenario** (0.930 vs 0.955 over days 1–5) while cutting cost ~36%. Not free; watch it with real models.
+- **The 36–42% real-suite saving reported earlier was mostly an artifact.** The mock let an insight from one MMLU question help any question of the same subject. With facts no longer transferring, memory saves 5–11% vs teacher-only and costs 1.5–3.2 accuracy points (seed 0, days 1–5). See "Do insights work?".
+- **The mock once turned poison into help:** with a negative `hint_gain`, gain × (−1.5 wrong-family factor) was positive, and a harmful insight was promoted on the poison day. Wrong-family hints now carry a fixed penalty; a regression test covers it.
+- **"Does no harm" was not enough to promote an insight.** Insights that changed nothing were promoted and took space. The autopilot now requires a measurable gain (accuracy up or loops down) with no regression.
 - **The article "A" was parsed as option A** ("A planet orbits…" → A). Caught by a test; option letters now need punctuation after a leading letter, and a lone "A" followed by a lowercase word is ignored.
 - **Plain XOR scan in NumPy is slower than the float product** (2.8 ms vs 0.58 ms at 100k), because reranking needs the floats anyway. XOR only pays inside FAISS's IVF.
 - **Calibration is not discrimination.** A calibrated ~72%-accurate student sits near 0.7 confidence on many answers, so matching the teacher's honesty without memory saved almost no cost. Memory is what lifts confidence where it is earned.
 - **Self-consistency ("think") is the most expensive route** and was usually disabled by the tuner.
 - **The first HIKMAT memory was O(n) per lookup and O(n²) to fill** (36 ms per lookup at 50k). Fixed by the index and a running byte count.
+
+## Do insights work? (Oct 2026 critique of our own approach)
+
+The question the owner asked, answered from the code and the `insights` sweep (numbers in README → "Do insights work?").
+
+**What is shown:**
+- The plumbing works end to end: insights are proposed only from verified, expensive solutions, quarantined, shadow-tested, promoted or rejected, budgeted, rolled back after poison, and keyed to the model version.
+- The autopilot rejects insights that don't help: with `hint_gain` ≤ 0, nothing is promoted except an insight that displaces a forced-in bad one.
+- Savings scale with the assumed hint effect, and on real questions memory moves the router along its cost/accuracy trade-off rather than improving both.
+
+**What is not shown, and why:**
+1. **The benefit is an input, not a result.** `MockModel.hint_shift` adds `hint_gain` to the student's skill. Any saving at `hint_gain` > 0 follows from that assumption. Only a real model can say how much a remembered method helps (spec 002, T015a).
+2. **Retrieval is easy by construction.** Stand-in keys are 0.92 × subject direction + 0.39 × hashed words, so same-subject questions are always > 0.75 similar. Real hidden states may cluster worse or by surface wording (T015 picks the layer by recall).
+3. **Verification uses the answer key.** JUDGE checks against ground truth when deciding what to remember. In deployment there is no key for new questions: math can be re-checked by execution, code by tests, but facts need sources. Expect fewer, later insights.
+4. **Most hinted answers come from repeats.** Real days sample with replacement (repeat rate 0.74); 49–66% of hinted answers used an insight from the same question. Real traffic repeats less than this, unless the user base is large.
+5. **Synthetic problems can't test transfer.** All math and code problems of a family share one template, so `procedural_transfer` has no effect there. GSM-Symbolic (100 templates × 50 variants) can, but its CC-BY-NC-ND license allows only local use.
+6. **The 16× teacher cost is an assumption.** It sets every saving. Real ratio = teacher tokens/s and price vs student; measure it on the GPU PC.
+7. **Thresholds are tuned without memory.** The router's emit threshold was tuned on the holdout with no memory, then memory changes the student's confidence. Re-tuning with memory live may recover accuracy; untested.
+
+**Decision:** keep HIKMAT, but treat it as a hypothesis. T015a (real student, GSM-Symbolic, same-template vs same-family hints) is the kill test: if a real hint doesn't raise accuracy or cut tokens on its own template, stop building memory features and rethink.
 
 ## Research track (unscheduled; each needs a cheap kill test first)
 | Idea | One line | Precedent | Kill test |
