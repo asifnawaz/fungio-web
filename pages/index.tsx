@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { Feature, UseCase } from '../types';
-import { TbNetwork, TbWifiOff, TbBrain, TbMapPin, TbSeeding, TbWorld, TbRoute, TbShield } from 'react-icons/tb';
+import { TbNetwork, TbWifiOff, TbBrain, TbMapPin, TbSeedling, TbWorld, TbRoute, TbShield } from 'react-icons/tb';
 import { GiMushroomGills, GiMushroom } from 'react-icons/gi';
 import { BsMusicNoteBeamed, BsPeopleFill } from 'react-icons/bs';
 import { FaMountain } from 'react-icons/fa';
@@ -328,7 +328,7 @@ export default function Home() {
                 <div className="absolute bottom-5 right-5 w-3 h-3 bg-glow-mint/20 rounded-full animate-spore-float shadow-[0_0_8px_rgba(140,255,218,0.3)] group-hover:bg-glow-mint/40 group-hover:shadow-[0_0_16px_rgba(140,255,218,0.5)] transition-all duration-500" style={{ animationDelay: '1s' }} />
                 <div className="absolute top-1/3 right-8 w-1 h-1 bg-neural-violet/30 rounded-full animate-spore-float opacity-0 group-hover:opacity-100 transition-opacity duration-700" style={{ animationDelay: '1.5s' }} />
                 
-                <TbSeeding className="text-6xl mb-8 text-neural-violet animate-pulse-slow transition-all duration-700 group-hover:scale-125 group-hover:-rotate-6 group-hover:text-neural-violet group-hover:drop-shadow-[0_0_16px_rgba(122,92,255,0.8)]" style={{ animationDelay: '0.5s' }} />
+                <TbSeedling className="text-6xl mb-8 text-neural-violet animate-pulse-slow transition-all duration-700 group-hover:scale-125 group-hover:-rotate-6 group-hover:text-neural-violet group-hover:drop-shadow-[0_0_16px_rgba(122,92,255,0.8)]" style={{ animationDelay: '0.5s' }} />
                 <h4 className="font-heading font-bold mb-4 text-xl text-neural-violet transition-all duration-500 group-hover:text-neural-violet group-hover:drop-shadow-[0_0_12px_rgba(122,92,255,0.6)]">Germinate</h4>
                 <p className="text-muted-white/80 group-hover:text-muted-white/95 transition-all duration-500 leading-relaxed font-medium">Nearby devices discover and collect the spore</p>
                 
