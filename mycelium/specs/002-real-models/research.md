@@ -55,6 +55,17 @@ Symbolic suite (GSM-Symbolic templates + MMLU), same model as the MTP build with
 
 678 s for 159 questions (4.3 s per question vs 8.9 s in the serial real-suite run), 36.9 tokens/s total; 17.0% replies at confidence exactly 0.5.
 
+Full eval sets (spec 002 T006), seeded random subsets, same server (MTP build, `--workers 4`); `python -m mycelium.cli baseline --suite <set> --limit N`:
+
+| Set | n | Accuracy | ECE | Hallucination | Abstain | Confidence exactly 0.5 | Time |
+|---|---|---|---|---|---|---|---|
+| MATH-500 | 100 | 0.590 | 0.245 | 0.410 | 0.000 | 33.0% | 2,821 s |
+| HumanEval+ | 50 | 0.540 | 0.440 | 0.460 | 0.000 | 4.0% | 465 s |
+| MBPP+ | 50 | 0.440 | 0.560 | 0.560 | 0.000 | 0.0% | 295 s |
+| SimpleQA | 100 | 0.010 | 0.892 | 0.920 | 0.070 | 2.0% | 416 s |
+
+Reading: on SimpleQA (obscure facts) the untrained 2B model is right 1% of the time but abstains only 7%, so it states a wrong fact 92% of the time; this is the clearest target for RLCR (calibration). Code answers are confident and wrong about half the time (ECE 0.44–0.56). On MATH-500 a third of replies lacked a `CONFIDENCE:` line (long LaTeX answers; check the prompt in T006). SimpleQA's judge is the approximate short-answer match, so 0.010 may undercount paraphrased right answers.
+
 **Problems found on the first real run (fixed, with tests):**
 1. llama-server's default `--reasoning auto` put this GGUF's whole reply into `reasoning_content` and left `content` empty, although the model card says Qwen3.5-2B runs non-thinking by default. Run the server with `--reasoning off`; the client also falls back to `reasoning_content`.
 2. One system prompt for all tasks mentioned code, and the model answered math with `ANSWER: see code`. Prompts are now per domain.

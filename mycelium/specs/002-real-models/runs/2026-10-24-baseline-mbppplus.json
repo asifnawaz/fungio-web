@@ -1,0 +1,33 @@
+{
+  "suite": "mbppplus",
+  "model": "qwen3.5-2b",
+  "overall": {
+    "n": 50,
+    "accuracy": 0.44,
+    "accuracy_answerable": 0.44,
+    "ece": 0.56,
+    "brier": 0.56,
+    "auroc": 0.5,
+    "hallucination_rate": 0.56,
+    "abstain_rate": 0.0,
+    "mean_loops": 1.0
+  },
+  "by_domain": {
+    "code": {
+      "n": 50,
+      "accuracy": 0.44,
+      "accuracy_answerable": 0.44,
+      "ece": 0.56,
+      "brier": 0.56,
+      "auroc": 0.5,
+      "hallucination_rate": 0.56,
+      "abstain_rate": 0.0,
+      "mean_loops": 1.0
+    }
+  },
+  "default_confidence_share": 0.0,
+  "seconds": 295.1743735309997,
+  "tokens": 9604,
+  "tokens_per_second": 32.53669986697329,
+  "workers": 4
+}

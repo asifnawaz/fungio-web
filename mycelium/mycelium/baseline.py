@@ -60,7 +60,7 @@ def evaluate_problems(
 
 def format_baseline(report: dict) -> str:
     lines = [
-        f"{report['model']} on {report['suite']} holdout ({report['overall']['n']} questions)",
+        f"{report['model']} on {report['suite']} ({report['overall']['n']} questions)",
         f"{'domain':<8} {'n':>4} {'acc':>6} {'ECE':>6} {'halluc':>7} {'abstain':>8}",
     ]
     for name, m in [("all", report["overall"]), *report["by_domain"].items()]:

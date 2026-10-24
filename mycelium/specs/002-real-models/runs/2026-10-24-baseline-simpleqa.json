@@ -1,0 +1,33 @@
+{
+  "suite": "simpleqa",
+  "model": "qwen3.5-2b",
+  "overall": {
+    "n": 100,
+    "accuracy": 0.01,
+    "accuracy_answerable": 0.01,
+    "ece": 0.8924000000000001,
+    "brier": 0.863416,
+    "auroc": 0.5707070707070707,
+    "hallucination_rate": 0.92,
+    "abstain_rate": 0.07,
+    "mean_loops": 1.0
+  },
+  "by_domain": {
+    "qa": {
+      "n": 100,
+      "accuracy": 0.01,
+      "accuracy_answerable": 0.01,
+      "ece": 0.8924000000000001,
+      "brier": 0.863416,
+      "auroc": 0.5707070707070707,
+      "hallucination_rate": 0.92,
+      "abstain_rate": 0.07,
+      "mean_loops": 1.0
+    }
+  },
+  "default_confidence_share": 0.02,
+  "seconds": 415.5220613289998,
+  "tokens": 13254,
+  "tokens_per_second": 31.897223357067002,
+  "workers": 4
+}
