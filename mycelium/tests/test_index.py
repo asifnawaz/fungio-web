@@ -3,7 +3,7 @@ import pytest
 
 from mycelium.evals.datasets import FEATURE_DIM
 from mycelium.hikmat.codec import CodonCodec
-from mycelium.hikmat.index import NumpyIndex, make_index
+from mycelium.hikmat.index import BinaryIndex, NumpyIndex, make_index
 from mycelium.hikmat.memory import AdmissionPolicy, HikmatMemory
 
 
@@ -54,9 +54,41 @@ def test_faiss_hnsw_recall_and_removal():
     assert index.search(vectors[4000], 1)[0][0] == 4000
 
 
-@pytest.mark.parametrize("kind", ["numpy", "faiss-hnsw"])
+def test_binary_ivf_switches_on_and_stays_correct():
+    pytest.importorskip("faiss")
+    rng = np.random.default_rng(3)
+    vectors = _unit(rng, 3000)
+    index = BinaryIndex(FEATURE_DIM, ivf_threshold=1000)
+    for i, v in enumerate(vectors[:999]):
+        index.add(i, v)
+    assert not index.uses_ivf
+    for i, v in enumerate(vectors[999:], start=999):
+        index.add(i, v)
+    assert index.uses_ivf
+    # Shortlist + exact rerank: every stored vector finds itself with its true score.
+    for i in range(0, 3000, 100):
+        key, score = index.search(vectors[i], 1)[0]
+        assert key == i and abs(score - 1.0) < 1e-5
+    for i in range(1500):
+        index.remove(i)
+    assert len(index) == 1500
+    assert all(k >= 1500 for k, _ in index.search(vectors[42], 10))
+
+
+def test_binary_ivf_is_exact_before_switching():
+    index = BinaryIndex(FEATURE_DIM, ivf_threshold=None)
+    reference = NumpyIndex(FEATURE_DIM)
+    rng = np.random.default_rng(4)
+    for i, v in enumerate(_unit(rng, 500)):
+        index.add(i, v)
+        reference.add(i, v)
+    q = _unit(rng, 1)[0]
+    assert index.search(q, 5) == reference.search(q, 5)
+
+
+@pytest.mark.parametrize("kind", ["numpy", "faiss-hnsw", "binary-ivf"])
 def test_memory_bookkeeping_with_each_index(kind):
-    if kind == "faiss-hnsw":
+    if kind != "numpy":
         pytest.importorskip("faiss")
     rng = np.random.default_rng(2)
     memory = HikmatMemory(

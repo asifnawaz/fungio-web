@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 
+from mycelium.bench import benchmark, format_rows
 from mycelium.models.openai_compat import OpenAICompatBackend
 from mycelium.pipeline import E2EConfig, run_e2e
+
+INDEX_KINDS = ["numpy", "binary-ivf", "faiss-hnsw"]
 
 
 def _summary(report: dict) -> str:
@@ -46,11 +49,19 @@ def main() -> None:
     e2e = sub.add_parser("e2e", help="run the full pipeline (mock student, mock or real teacher)")
     e2e.add_argument("--seed", type=int, default=0)
     e2e.add_argument("--out", help="write the full JSON report here")
-    e2e.add_argument("--index", choices=["numpy", "faiss-hnsw"], default="numpy", help="HIKMAT vector index")
+    e2e.add_argument("--index", choices=INDEX_KINDS, default="numpy", help="HIKMAT vector index")
     e2e.add_argument("--teacher-url", help="OpenAI-compatible server for the teacher, e.g. http://localhost:8080")
     e2e.add_argument("--teacher-model", default="teacher", help="model name to send to the teacher server")
     e2e.add_argument("--teacher-cost", type=float, default=16.0, help="teacher cost per loop relative to the student")
+    bench = sub.add_parser("bench", help="benchmark HIKMAT vector indexes")
+    bench.add_argument("--n", type=int, default=100_000, help="number of stored keys")
+    bench.add_argument("--queries", type=int, default=500)
+    bench.add_argument("--index", choices=INDEX_KINDS, action="append", help="repeat to pick several (default: all available)")
     args = parser.parse_args()
+
+    if args.command == "bench":
+        print(format_rows(benchmark(args.n, args.queries, kinds=args.index), args.n))
+        return
 
     teacher = None
     if args.teacher_url:

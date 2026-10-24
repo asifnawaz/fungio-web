@@ -28,10 +28,11 @@ into the same interfaces next.
 ```bash
 cd mycelium
 python -m venv .venv && . .venv/bin/activate
-pip install -e ".[dev]"            # add ",faiss" for the FAISS index
-pytest -q                          # 51 tests, ~30 s
+pip install -e ".[dev]"            # add ",faiss" for the FAISS indexes
+pytest -q                          # 55 tests, ~30 s
 python -m mycelium.cli e2e --out report.json
-python -m mycelium.cli e2e --index faiss-hnsw
+python -m mycelium.cli e2e --index binary-ivf
+python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
 ```
 
 ### With a real teacher
@@ -92,18 +93,20 @@ Libraries chosen per stage, so nothing here reinvents what already exists:
 | Giant MoE models | Strata / Maya (GPU + RAM + SSD tiers) | Later: testbed for task-aware expert prefetch |
 | Student fine-tuning (SFT, GRPO with the RLCR reward) | TRL with **either** Unsloth **or** Liger Kernel | Fused kernels cut VRAM; using both double-patches the same layers |
 | Student quantization | GSQ (post-training 1–3 bit) + RCO (per-tensor bits under an exact size budget) | Replaces the earlier ternary-training plan. RCO fits one model to each device budget (phone, laptop, PC). |
-| HIKMAT search | NumPy (exact, default) or FAISS HNSW | Measured below |
+| HIKMAT search | NumPy (exact, default); FAISS binary IVF (XOR + popcount) for large memories | Measured below |
 | Faster decoding (later) | Speculative decoding (EAGLE-3 / P-EAGLE style drafts, MTP heads) in the serving engine | 2–4x on typical workloads per published reports |
 
-HIKMAT lookup speed on this machine (CPU, 64-dim keys):
+HIKMAT lookup speed on this machine (4 CPU cores, 64-dim clustered keys; `python -m mycelium.cli bench` reproduces it):
 
-| Records | Before (rebuild per lookup) | NumPy index | FAISS HNSW |
-|---|---|---|---|
-| 10,000 | 6.1 ms | 0.07 ms | 0.11 ms |
-| 50,000 | 35.6 ms | — | — |
-| 100,000 | — | 0.55 ms | 0.22 ms |
+| Records | Before (rebuild per lookup) | `numpy` (exact) | `faiss-hnsw` | `binary-ivf` (XOR + IVF) |
+|---|---|---|---|---|
+| 10,000 | 6.1 ms | 0.07 ms | 0.11 ms | same as numpy (exact below 10k) |
+| 100,000 | (35.6 ms at 50k) | 0.58 ms | 0.07 ms, 99.6% right family | 0.08 ms, 100% right family |
+| 1,000,000 | — | 8.4 ms | — | 0.12 ms, 99.3% right family |
 
-Inserts went from quadratic (280 s for 50k) to ~0.4 ms each at 100k.
+`binary-ivf` searches exactly until 10k records, then keeps each key's sign bits (64 dims → 8 bytes) in a FAISS binary IVF: only 8 clusters are scanned, Hamming distance (popcount of XOR) builds a shortlist, and the shortlist is reranked exactly. A plain XOR scan in NumPy was slower than the float product (2.8 ms vs 0.58 ms at 100k), so it isn't offered. Inserts went from quadratic (280 s for 50k) to ~0.4 ms each at 100k.
+
+Which index to use: `numpy` up to ~100k records; `binary-ivf` beyond that. Its 8-byte keys also suit phones once reranking reads the 16-byte CODON codes instead of floats.
 
 ## Design rules the code enforces
 
