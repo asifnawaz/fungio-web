@@ -44,6 +44,17 @@ Run in the cloud container, not the PC: 4-core Intel Xeon @ 2.10GHz (AVX-512, AM
 
 989 s, 11.4 tokens/s end to end; 19.8% of replies had confidence exactly 0.5 (the parser's fallback, so likely a missing `CONFIDENCE:` line). Reading: the base student is strongly overconfident (ECE 0.36) and invents answers about entities that don't exist 58% of the time. That is the gap RLCR (calibration) training is meant to close.
 
+Symbolic suite (GSM-Symbolic templates + MMLU), same model as the MTP build with `--spec-type draft-mtp`, `--workers 4`:
+
+| Domain | n | Accuracy | ECE | Hallucination | Abstain |
+|---|---|---|---|---|---|
+| all | 159 | 0.635 | 0.304 | 0.365 | 0.031 |
+| math (GSM-Symbolic variants) | 76 | 0.750 | 0.250 | 0.250 | 0.000 |
+| mcq | 71 | 0.549 | 0.247 | 0.451 | 0.000 |
+| qa (unanswerable) | 12 | 0.417 | 0.983 | 0.583 | 0.417 |
+
+678 s for 159 questions (4.3 s per question vs 8.9 s in the serial real-suite run), 36.9 tokens/s total; 17.0% replies at confidence exactly 0.5.
+
 **Problems found on the first real run (fixed, with tests):**
 1. llama-server's default `--reasoning auto` put this GGUF's whole reply into `reasoning_content` and left `content` empty, although the model card says Qwen3.5-2B runs non-thinking by default. Run the server with `--reasoning off`; the client also falls back to `reasoning_content`.
 2. One system prompt for all tasks mentioned code, and the model answered math with `ANSWER: see code`. Prompts are now per domain.

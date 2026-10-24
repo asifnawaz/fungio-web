@@ -98,7 +98,10 @@ def main() -> None:
     base.add_argument("--url", required=True, help="OpenAI-compatible server of the model to measure")
     base.add_argument("--model", default="student", help="model name to send to the server")
     base.add_argument("--api-key-env", help="environment variable holding the server's API key")
-    base.add_argument("--suite", choices=["real", "symbolic"], default="real")
+    base.add_argument("--suite", choices=["real", "symbolic", "math500", "humanevalplus", "mbppplus", "simpleqa"],
+                      default="real", help="real/symbolic: committed samples' holdout; others: full sets in --data-dir")
+    base.add_argument("--data-dir", default="data/full", help="where scripts/fetch_datasets.py --evals wrote the sets")
+    base.add_argument("--limit", type=int, help="evaluate a seeded random subset of this size (full sets only)")
     base.add_argument("--max-tokens", type=int, default=2048)
     base.add_argument("--seed", type=int, default=0)
     base.add_argument("--workers", type=int, default=1, help="requests in flight at once (match llama-server -np)")
@@ -121,7 +124,15 @@ def main() -> None:
         if args.api_key_env and not api_key:
             parser.error(f"environment variable {args.api_key_env} is not set")
         backend = OpenAICompatBackend(args.url, args.model, tokens_per_loop=args.max_tokens, api_key=api_key)
-        report = baseline.run_baseline(backend, E2EConfig(seed=args.seed, suite=args.suite), workers=args.workers)
+        if args.suite in ("real", "symbolic"):
+            report = baseline.run_baseline(backend, E2EConfig(seed=args.seed, suite=args.suite), workers=args.workers)
+        else:
+            from mycelium.evals.real import load_eval_source, split
+
+            problems = load_eval_source(args.suite, Path(args.data_dir))
+            if args.limit:
+                problems = split(problems, (1.0,), seed=args.seed)[0][: args.limit]
+            report = baseline.evaluate_problems(backend, problems, label=args.suite, workers=args.workers)
         print(baseline.format_baseline(report))
         if args.out:
             _write_json(args.out, report)

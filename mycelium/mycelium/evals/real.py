@@ -157,6 +157,67 @@ def load_mmlu(paths: list[Path] | None = None) -> list[Problem]:
     return problems
 
 
+# ---- full evaluation sets (spec 002 T006): downloaded by scripts/fetch_datasets.py --evals
+# into data/full/ (gitignored); only the loaders and tiny fixtures live in the repo.
+
+DATA_FULL = Path("data/full")
+EVAL_SOURCES = ("math500", "humanevalplus", "mbppplus", "simpleqa")
+
+
+def load_math500(path: Path | None = None) -> list[Problem]:
+    problems = []
+    for row in _read_jsonl(path or DATA_FULL / "math500.jsonl"):
+        family = f"math500:{row['subject']}"
+        problems.append(Problem(
+            id=f"math500-{row['id']}", domain="math", prompt=row["problem"], answer=row["answer"],
+            difficulty=0.2 + 0.15 * (int(row["level"]) - 1), family=family,
+            features=real_features(family, row["problem"]),
+        ))
+    return problems
+
+
+def load_humanevalplus(path: Path | None = None) -> list[Problem]:
+    problems = []
+    for row in _read_jsonl(path or DATA_FULL / "humanevalplus.jsonl"):
+        prompt = f"Complete this Python function and return the whole function.\n\n```python\n{row['prompt']}```"
+        problems.append(Problem(
+            id=f"humanevalplus-{row['id']}", domain="code", prompt=prompt,
+            # EvalPlus tests define check(candidate); calling it runs every case.
+            answer=f"{row['test']}\n\ncheck({row['entry_point']})\n",
+            difficulty=0.5, family="code:humanevalplus", features=real_features("code:humanevalplus", row["prompt"]),
+        ))
+    return problems
+
+
+def load_mbppplus(path: Path | None = None) -> list[Problem]:
+    problems = []
+    for row in _read_jsonl(path or DATA_FULL / "mbppplus.jsonl"):
+        # The task text doesn't name the function; the first test shows its name and use.
+        prompt = f"{row['prompt']}\nYour code must pass this test:\n{row['example']}"
+        problems.append(Problem(
+            id=f"mbppplus-{row['id']}", domain="code", prompt=prompt, answer=row["test"],
+            difficulty=0.45, family="code:mbppplus", features=real_features("code:mbppplus", row["prompt"]),
+        ))
+    return problems
+
+
+def load_simpleqa(path: Path | None = None) -> list[Problem]:
+    problems = []
+    for row in _read_jsonl(path or DATA_FULL / "simpleqa.jsonl"):
+        family = "qa:simpleqa"
+        problems.append(Problem(
+            id=row["id"], domain="qa", prompt=row["question"], answer=row["answer"],
+            difficulty=0.9, family=family, features=real_features(family, row["question"]),
+        ))
+    return problems
+
+
+def load_eval_source(source: str, data_dir: Path = DATA_FULL) -> list[Problem]:
+    loaders = {"math500": load_math500, "humanevalplus": load_humanevalplus,
+               "mbppplus": load_mbppplus, "simpleqa": load_simpleqa}
+    return loaders[source](data_dir / f"{source}.jsonl")
+
+
 def load_real() -> list[Problem]:
     """Every committed real sample, in a fixed order."""
     return load_gsm8k() + load_mmlu()

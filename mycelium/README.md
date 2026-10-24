@@ -36,6 +36,7 @@ python -m mycelium.cli bench --n 1000000   # compare HIKMAT indexes
 python -m mycelium.cli insights --suite real   # does memory pay? sweep of hint assumptions (~4 min)
 python -m mycelium.cli killtest --mock         # spec 003 harness check (~10 s)
 python -m mycelium.cli doctor                  # what this machine can run
+python scripts/fetch_datasets.py --evals --out data/full   # MATH-500, HumanEval+, MBPP+, SimpleQA (pip install -e ".[evals]")
 python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --workers 4   # P0: one real model alone
 ```
 
@@ -202,7 +203,7 @@ Every next task, in order, is in [`specs/ROADMAP.md`](specs/ROADMAP.md), with ma
 
 1. Small model first: the untrained student `Qwen3.5-2B-Q8_0.gguf` (2 GB) as the baseline (`python -m mycelium.cli baseline`) and the first kill-test reading.
 2. Then the teacher on the 3090 (`Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf`, 11.8 GB) and a real-teacher run.
-3. Trustworthy evals: MATH-500, HumanEval+/MBPP+, SimpleQA, TruthfulQA, a code sandbox, a private holdout, a second JUDGE.
+3. Trustworthy evals: MATH-500, HumanEval+/MBPP+ and SimpleQA (loaders done), a code sandbox, a private holdout, a second JUDGE.
 4. Real student (`Qwen/Qwen3.5-2B`): SFT, logit distillation, GRPO with the RLCR reward.
 5. Decisive kill test with the trained student; hidden-state HIKMAT keys only if it says `pays`.
 6. GSQ + RCO student builds, then phones (spec 004) and the insight hub (spec 005).

@@ -48,7 +48,7 @@ mycelium/
     distill.py rlcr.py router.py autopilot.py pipeline.py
     hikmat/                 codec (2-bit CODON), index (numpy, faiss-hnsw, binary-ivf), memory
     sim_teacher.py          simulated teacher on an OpenAI-compatible HTTP endpoint
-    evals/real.py           loaders for the committed GSM8K + MMLU samples
+    evals/real.py           loaders: committed GSM8K, MMLU, GSM-Symbolic samples; full MATH-500, HumanEval+, MBPP+, SimpleQA
     data/samples/           330 GSM8K + MMLU questions (MIT) and GSM-Symbolic (5,000 rows, Apple license); see ATTRIBUTION.md there
     insights.py             sweep of the mock's hint assumptions vs a no-memory router
     killtest.py             spec 003: does a stored verified method help a real model?
@@ -56,8 +56,8 @@ mycelium/
     baseline.py             P0 on real hardware: one model alone on a real suite's holdout
     rsi.py                  spec 006: recursive self-improvement loop with exam gate
     bench.py cli.py
-  scripts/fetch_datasets.py full GSM8K/MMLU download (needs Hugging Face access)
-  tests/                    pytest, one file per module + end-to-end
+  scripts/fetch_datasets.py full GSM8K/MMLU download; --evals for MATH-500, HumanEval+, MBPP+, SimpleQA
+  tests/                    pytest, one file per module + end-to-end; fixtures/ (tiny real rows, licenses in README there)
 ```
 
 ## Commands

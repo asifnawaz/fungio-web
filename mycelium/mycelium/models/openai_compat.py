@@ -32,6 +32,9 @@ _ABSTAIN_RULE = "If the question cannot be answered from what you know, write `A
 # model (Qwen3.5-2B) answer math questions with `ANSWER: see code`.
 SYSTEM_PROMPTS = {
     "math": _FORMAT.format(answer="<the final number only>") + _ABSTAIN_RULE,
+    # MATH-style problems: answers are expressions (fractions, roots, tuples), not just numbers.
+    "math_expression": _FORMAT.format(answer="<the final answer only, in LaTeX if it is not a plain number>")
+    + _ABSTAIN_RULE,
     "code": _FORMAT.format(answer="see code")
     + "Put the complete function in a ```python code block before those two lines.\n" + _ABSTAIN_RULE,
     "mcq": _FORMAT.format(answer="<the letter of the correct option only>") + _ABSTAIN_RULE,
@@ -40,7 +43,9 @@ SYSTEM_PROMPTS = {
 SYSTEM_PROMPT = SYSTEM_PROMPTS["qa"]
 
 
-def system_prompt(domain: str) -> str:
+def system_prompt(domain: str, family: str = "") -> str:
+    if family.startswith("math500:"):
+        return SYSTEM_PROMPTS["math_expression"]
     return SYSTEM_PROMPTS.get(domain, SYSTEM_PROMPT)
 DEFAULT_CONFIDENCE = 0.5
 _ANSWER = re.compile(r"^\s*ANSWER:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
@@ -124,7 +129,7 @@ class OpenAICompatBackend:
         stop_at: float | None = None,
     ) -> Answer:
         messages = [
-            {"role": "system", "content": system_prompt(problem.domain)},
+            {"role": "system", "content": system_prompt(problem.domain, problem.family)},
             {"role": "user", "content": problem.prompt},
         ]
         if hint is not None:

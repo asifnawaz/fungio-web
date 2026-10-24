@@ -13,10 +13,57 @@ import tempfile
 from mycelium.types import Answer, Problem
 
 CODE_TIMEOUT_S = 5.0
+# EvalPlus suites run hundreds of extra cases per task; 5 s failed a correct reference
+# solution on a busy 4-core machine.
+EVALPLUS_TIMEOUT_S = 30.0
 _NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
 
 
+_NUMERIC = re.compile(r"^-?\d+(?:\.\d+)?$")
+
+
+def _last_boxed(text: str) -> str:
+    """Content of the last \\boxed{...} (brace-balanced), or the text itself."""
+    start = text.rfind("\\boxed{")
+    if start < 0:
+        return text
+    depth, i = 0, start + len("\\boxed{") - 1
+    for j in range(i, len(text)):
+        depth += {"{": 1, "}": -1}.get(text[j], 0)
+        if depth == 0:
+            return text[i + 1 : j]
+    return text
+
+
+def _normalize_latex(text: str) -> str:
+    text = _last_boxed(text).strip().strip("$").strip()
+    for old, new in (("\\left", ""), ("\\right", ""), ("\\dfrac", "\\frac"), ("\\tfrac", "\\frac"),
+                     ("\\!", ""), ("\\,", ""), ("^{\\circ}", ""), ("^\\circ", ""), ("\\%", ""), ("%", "")):
+        text = text.replace(old, new)
+    text = re.sub(r"\\text\{([^}]*)\}", r"\1", text)
+    return re.sub(r"\s+", "", text).rstrip(".")
+
+
+def judge_math_expression(expected: str, text: str) -> bool:
+    """MATH-style answers (fractions, roots, tuples, intervals in LaTeX).
+
+    Uses the `math-verify` package when installed (symbolic equivalence); otherwise
+    compares normalized LaTeX strings, which misses some equivalent forms.
+    """
+    try:
+        from math_verify import parse, verify
+
+        gold, guess = parse(f"${expected}$"), parse(text if "\\boxed" in text else f"${text}$")
+        if gold and guess and verify(gold, guess):
+            return True
+    except ImportError:
+        pass
+    return _normalize_latex(expected) == _normalize_latex(text)
+
+
 def judge_math(expected: str, text: str) -> bool:
+    if not _NUMERIC.match(expected.strip()):
+        return judge_math_expression(expected, text)
     found = _NUMBER.findall(text)
     if not found:
         return False
@@ -32,6 +79,16 @@ def _normalize(text: str) -> str:
 
 def judge_qa(expected: str, text: str) -> bool:
     return _normalize(expected) == _normalize(text)
+
+
+def judge_short_answer(expected: str, text: str) -> bool:
+    """SimpleQA-style facts: right if the normalized reference appears in a short reply.
+
+    SimpleQA's own grader is a model; this deterministic check is stricter on paraphrases
+    ("Mike" for "Michael") and lenient on extra words, so report it as approximate.
+    """
+    want, got = _normalize(expected), _normalize(text)
+    return bool(want) and len(got) <= 3 * len(want) + 20 and f" {want} " in f" {got} "
 
 
 # A letter followed by "." ")" ":" or nothing. Not a space: "A planet ..." is not option A.
@@ -58,7 +115,7 @@ def judge_mcq(expected: str, text: str) -> bool:
 
 
 @functools.lru_cache(maxsize=8192)
-def judge_code(tests: str, code: str) -> bool:
+def judge_code(tests: str, code: str, timeout: float = CODE_TIMEOUT_S) -> bool:
     """Run candidate code plus its tests in a separate, isolated interpreter.
 
     This is process isolation only. Real deployments must run model code in a proper
@@ -74,7 +131,7 @@ def judge_code(tests: str, code: str) -> bool:
                 [sys.executable, "-I", path],
                 cwd=tmp,
                 capture_output=True,
-                timeout=CODE_TIMEOUT_S,
+                timeout=timeout,
                 env={"PATH": os.environ.get("PATH", "")},
             )
         except subprocess.TimeoutExpired:
@@ -91,8 +148,11 @@ def judge(problem: Problem, answer: Answer) -> bool:
     if problem.domain == "math":
         return judge_math(problem.answer, answer.text)
     if problem.domain == "code":
-        return judge_code(problem.answer, answer.text)
+        heavy = problem.family in ("code:humanevalplus", "code:mbppplus")
+        return judge_code(problem.answer, answer.text, EVALPLUS_TIMEOUT_S if heavy else CODE_TIMEOUT_S)
     if problem.domain == "qa":
+        if problem.family.startswith("qa:simpleqa"):
+            return judge_short_answer(problem.answer, answer.text)
         return judge_qa(problem.answer, answer.text)
     if problem.domain == "mcq":
         return judge_mcq(problem.answer, answer.text)

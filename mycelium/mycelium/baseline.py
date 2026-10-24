@@ -15,17 +15,23 @@ from mycelium.evals.harness import evaluate
 from mycelium.models.base import ModelBackend
 from mycelium.models.openai_compat import DEFAULT_CONFIDENCE
 from mycelium.pipeline import E2EConfig, build_real_suite
-from mycelium.types import Answer
+from mycelium.types import Answer, Problem
 
 
 def run_baseline(backend: ModelBackend, config: E2EConfig, *, max_loops: int = 1, workers: int = 1) -> dict:
-    """Evaluate `backend` on the suite's holdout (tune + test), never on the golden set.
+    """Evaluate `backend` on the suite's holdout (tune + test), never on the golden set."""
+    suite = build_real_suite(config)
+    return evaluate_problems(backend, suite.tune + suite.test, label=config.suite, max_loops=max_loops, workers=workers)
+
+
+def evaluate_problems(
+    backend: ModelBackend, holdout: list[Problem], *, label: str, max_loops: int = 1, workers: int = 1
+) -> dict:
+    """Answer every problem once and report metrics per domain plus speed.
 
     `workers` > 1 sends that many requests at once; a llama-server with as many slots
     (`-np`) batches them, which on a CPU raises total tokens/s a lot.
     """
-    suite = build_real_suite(config)
-    holdout = suite.tune + suite.test
     start = time.perf_counter()
     with ThreadPoolExecutor(max_workers=workers) as pool:
         results = list(pool.map(lambda p: backend.answer(p, max_loops=max_loops), holdout))
@@ -38,7 +44,7 @@ def run_baseline(backend: ModelBackend, config: E2EConfig, *, max_loops: int = 1
         by_domain[domain] = evaluate(lambda p: answers[p.id], subset)
     tokens = sum(a.tokens for a in answers.values())
     return {
-        "suite": config.suite,
+        "suite": label,
         "model": getattr(backend, "name", "unknown"),
         "overall": overall,
         "by_domain": by_domain,

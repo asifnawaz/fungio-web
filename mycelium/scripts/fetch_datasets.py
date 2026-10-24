@@ -56,6 +56,43 @@ def gsm_symbolic_rows(config: str = "main"):
         }
 
 
+def _hub_file(repo: str, filename: str) -> str:
+    from huggingface_hub import hf_hub_download
+
+    return hf_hub_download(repo, filename, repo_type="dataset")
+
+
+def eval_rows(source: str):
+    """Full evaluation sets for spec 002 T006 (ids and licenses in specs/ROADMAP.md)."""
+    if source == "math500":
+        for line in open(_hub_file("HuggingFaceH4/MATH-500", "test.jsonl")):
+            row = json.loads(line)
+            yield {"id": row["unique_id"], "problem": row["problem"], "answer": row["answer"],
+                   "subject": row["subject"], "level": row["level"]}
+    elif source == "humanevalplus":
+        for line in open(_hub_file("evalplus/humanevalplus", "test.jsonl")):
+            row = json.loads(line)
+            yield {"id": row["task_id"], "prompt": row["prompt"], "entry_point": row["entry_point"],
+                   "test": row["test"], "canonical_solution": row["canonical_solution"]}
+    elif source == "mbppplus":
+        import pyarrow.parquet as pq
+
+        path = _hub_file("evalplus/mbppplus", "data/test-00000-of-00001-d5781c9c51e02795.parquet")
+        for row in pq.read_table(path).to_pylist():
+            yield {"id": row["task_id"], "prompt": row["prompt"], "example": row["test_list"][0],
+                   "test": row["test"], "canonical_solution": row["code"]}
+    elif source == "simpleqa":
+        import ast
+        import csv
+
+        for i, row in enumerate(csv.DictReader(open(_hub_file("basicv8vc/SimpleQA", "simple_qa_test_set.csv")))):
+            # metadata is a Python dict literal, not JSON.
+            topic = ast.literal_eval(row["metadata"]).get("topic", "") if row["metadata"] else ""
+            yield {"id": f"simpleqa-{i}", "question": row["problem"], "answer": row["answer"], "topic": topic}
+    else:
+        raise ValueError(source)
+
+
 def mmlu_rows(subject: str, split: str):
     from datasets import load_dataset
 
@@ -85,8 +122,14 @@ def main() -> None:
     parser.add_argument("--split", default="test")
     parser.add_argument("--subjects", nargs="*", default=SUBJECTS)
     parser.add_argument("--gsm-symbolic", action="store_true", help="also fetch GSM-Symbolic P1 and P2")
+    parser.add_argument("--evals", action="store_true",
+                        help="only fetch MATH-500, HumanEval+, MBPP+ and SimpleQA (needs huggingface_hub, pyarrow)")
     args = parser.parse_args()
     out = Path(args.out)
+    if args.evals:
+        for source in ("math500", "humanevalplus", "mbppplus", "simpleqa"):
+            print(source, write(out / f"{source}.jsonl", eval_rows(source)))
+        return
     print("gsm8k", write(out / f"gsm8k_{args.split}.jsonl", gsm8k_rows(args.split)))
     for subject in args.subjects:
         print(subject, write(out / f"mmlu_{subject}.jsonl", mmlu_rows(subject, args.split)))
