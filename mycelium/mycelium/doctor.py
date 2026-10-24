@@ -83,7 +83,7 @@ def advice(report: dict) -> list[str]:
     if report["gpus"] and not report["tools"]["llama-server"]:
         tips.append("llama-server not on PATH: install or build llama.cpp with CUDA (spec 002 T001).")
     if not report["tools"]["hf"]:
-        tips.append('Hugging Face CLI not on PATH: pip install -U "huggingface_hub[cli]"')
+        tips.append('Hugging Face CLI not on PATH: pip install -U huggingface_hub')
     if not report["disk_ok"]:
         tips.append(f"Only {report['free_disk_gb']} GB free; [GPU] tasks need about {MIN_FREE_DISK_GB} GB.")
     if report.get("huggingface_reachable") is False:
