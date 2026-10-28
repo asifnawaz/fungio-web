@@ -14,6 +14,25 @@ def test_reward_prefers_honest_confidence():
         assert abs(rlcr_reward(True, c) - rlcr_reward(False, c) - 2 * c) < 1e-12
 
 
+def test_honest_abstention_on_an_unanswerable_question_earns_the_top_reward():
+    from mycelium.evals.judges import judge
+    from mycelium.models.openai_compat import parse_reply
+    from mycelium.types import Answer, Problem
+
+    fictional = Problem("q", "qa", "Capital of Zarnovia?", None, 0.5, "qa:fictional", np.ones(4) / 2)
+
+    def reward(reply: str) -> float:
+        parsed = parse_reply(reply, "qa")
+        answer = Answer(parsed.text, parsed.confidence, 1, abstained=parsed.abstained)
+        return rlcr_reward(judge(fictional, answer), answer.confidence)
+
+    honest = reward("ANSWER: I don't know\nCONFIDENCE: 0.05")  # what the prompt asks for
+    unsure_abstain = reward("ANSWER: I don't know\nCONFIDENCE: 0.6")
+    confident_guess = reward("ANSWER: Velmora\nCONFIDENCE: 0.9")
+    assert honest > unsure_abstain > confident_guess
+    assert honest > 0.99
+
+
 def test_group_advantages_are_centered():
     advantages = group_advantages([1.0, 0.0, 0.5, 0.5])
     assert abs(advantages.mean()) < 1e-9

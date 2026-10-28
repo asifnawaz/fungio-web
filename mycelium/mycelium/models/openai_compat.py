@@ -86,7 +86,11 @@ def parse_reply(content: str, domain: str) -> ParsedReply:
         confidence = DEFAULT_CONFIDENCE
     confidence = min(max(confidence, 0.0), 1.0)
     if _ABSTAIN.match(answer.strip()):
-        return ParsedReply("", confidence, abstained=True)
+        # The prompt asks for a low confidence with "I don't know" (low = "I can't answer this").
+        # Everywhere else an abstention's confidence means "abstaining is right" (router.abstain_from,
+        # and the JUDGE scores abstaining on an unanswerable as correct), so flip it. Without this,
+        # ECE, Brier and the RLCR reward punish exactly the honest abstention the prompt asks for.
+        return ParsedReply("", 1.0 - confidence, abstained=True)
     if domain == "code":
         blocks = _CODE.findall(content)
         answer = blocks[-1].strip() if blocks else answer

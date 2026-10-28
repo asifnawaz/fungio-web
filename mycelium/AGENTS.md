@@ -27,7 +27,7 @@ The project is free and open source, and will stay that way (intended license: A
 - **Next (spec 002):** real models on the owner's GPU PC. See `specs/002-real-models/tasks.md` and pick the first unchecked task. Once a real student runs, T015a (= spec 003's real run) comes before any other HIKMAT work.
 - **RSI (spec 006):** recursive self-improvement loop done on the mock (`python -m mycelium.cli rsi`): verified self-traces at the frontier, train a copy, promote only on a clear exam gain, plateau and Goodhart stops, a recipe bandit. Real kill test pre-registered in `specs/006-rsi/research.md` (roadmap row 11a).
 - **Later (drafts, blocked):** spec 004 (phones and laptops), spec 005 (insight-sharing hub). Don't build them before their gates in `specs/ROADMAP.md`.
-- Tests: 117, about 60 s on 4 idle CPU cores.
+- Tests: 118, about 60 s on 4 idle CPU cores.
 - **Research track (not scheduled):** see `docs/decisions.md` → "Research track".
 
 ## Layout

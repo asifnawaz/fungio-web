@@ -12,6 +12,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from mycelium.evals.harness import evaluate
+from mycelium.evals.judges import judge
 from mycelium.models.base import ModelBackend
 from mycelium.models.openai_compat import DEFAULT_CONFIDENCE
 from mycelium.pipeline import E2EConfig, build_real_suite
@@ -55,6 +56,14 @@ def evaluate_problems(
         "tokens": tokens,
         "tokens_per_second": tokens / seconds if seconds and tokens else None,
         "workers": workers,
+        # One row per question, so metrics can be recomputed if a definition changes
+        # (as the abstention-confidence fix of 2026-10-28 did) without rerunning the model.
+        "replies": [
+            {"id": p.id, "domain": p.domain, "answerable": p.answerable, "correct": bool(judge(p, answers[p.id])),
+             "confidence": answers[p.id].confidence, "abstained": answers[p.id].abstained,
+             "tokens": answers[p.id].tokens}
+            for p in holdout
+        ],
     }
 
 

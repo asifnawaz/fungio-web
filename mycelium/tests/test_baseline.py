@@ -18,6 +18,9 @@ def test_baseline_over_http_reports_per_domain_and_speed():
     assert report["tokens"] > 0 and report["tokens_per_second"] > 0
     assert 0 <= report["default_confidence_share"] <= 1
     assert "tokens/s" in format_baseline(report)
+    rows = report["replies"]
+    assert len(rows) == report["overall"]["n"] and len({r["id"] for r in rows}) == len(rows)
+    assert abs(sum(r["correct"] for r in rows) / len(rows) - report["overall"]["accuracy"]) < 1e-9
 
 
 def _report(model: str, suite: str, n: int, acc: float) -> dict:

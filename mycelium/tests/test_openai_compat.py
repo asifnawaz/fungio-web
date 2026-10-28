@@ -76,7 +76,8 @@ def test_code_block_is_extracted_and_judged(server):
 
 def test_abstention_and_missing_confidence():
     abstain = parse_reply("No such place.\nANSWER: I don't know\nCONFIDENCE: 0.1", "qa")
-    assert abstain.abstained and abstain.confidence == 0.1
+    # Stated 0.1 = "I can't answer"; stored as 0.9 = "abstaining is right", as router.abstain_from does.
+    assert abstain.abstained and abs(abstain.confidence - 0.9) < 1e-12
     bare = parse_reply("ANSWER: Paris", "qa")
     assert bare.text == "Paris" and bare.confidence == 0.5
 
