@@ -1,0 +1,33 @@
+{
+  "suite": "math500",
+  "model": "qwen3.5-2b",
+  "overall": {
+    "n": 100,
+    "accuracy": 0.59,
+    "accuracy_answerable": 0.59,
+    "ece": 0.245,
+    "brier": 0.1825,
+    "auroc": 0.861099627945432,
+    "hallucination_rate": 0.41,
+    "abstain_rate": 0.0,
+    "mean_loops": 1.0
+  },
+  "by_domain": {
+    "math": {
+      "n": 100,
+      "accuracy": 0.59,
+      "accuracy_answerable": 0.59,
+      "ece": 0.245,
+      "brier": 0.1825,
+      "auroc": 0.861099627945432,
+      "hallucination_rate": 0.41,
+      "abstain_rate": 0.0,
+      "mean_loops": 1.0
+    }
+  },
+  "default_confidence_share": 0.33,
+  "seconds": 2821.468398347,
+  "tokens": 107942,
+  "tokens_per_second": 38.257384014380406,
+  "workers": 4
+}

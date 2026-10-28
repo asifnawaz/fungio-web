@@ -1,0 +1,54 @@
+{
+  "suite": "real",
+  "model": "qwen3.5-2b",
+  "overall": {
+    "n": 111,
+    "accuracy": 0.5765765765765766,
+    "accuracy_answerable": 0.5959595959595959,
+    "ece": 0.3594594594594594,
+    "brier": 0.35545045045045043,
+    "auroc": 0.6293218085106383,
+    "hallucination_rate": 0.42342342342342343,
+    "abstain_rate": 0.04504504504504504,
+    "mean_loops": 1.0
+  },
+  "by_domain": {
+    "math": {
+      "n": 29,
+      "accuracy": 0.7241379310344828,
+      "accuracy_answerable": 0.7241379310344828,
+      "ece": 0.27586206896551724,
+      "brier": 0.27586206896551724,
+      "auroc": 0.5,
+      "hallucination_rate": 0.27586206896551724,
+      "abstain_rate": 0.0,
+      "mean_loops": 1.0
+    },
+    "mcq": {
+      "n": 70,
+      "accuracy": 0.5428571428571428,
+      "accuracy_answerable": 0.5428571428571428,
+      "ece": 0.2878571428571429,
+      "brier": 0.2848928571428571,
+      "auroc": 0.709703947368421,
+      "hallucination_rate": 0.45714285714285713,
+      "abstain_rate": 0.0,
+      "mean_loops": 1.0
+    },
+    "qa": {
+      "n": 12,
+      "accuracy": 0.4166666666666667,
+      "accuracy_answerable": null,
+      "ece": 0.9791666666666667,
+      "brier": 0.959375,
+      "auroc": 0.0,
+      "hallucination_rate": 0.5833333333333334,
+      "abstain_rate": 0.4166666666666667,
+      "mean_loops": 1.0
+    }
+  },
+  "default_confidence_share": 0.1981981981981982,
+  "seconds": 988.547262731,
+  "tokens": 11294,
+  "tokens_per_second": 11.424845756791381
+}

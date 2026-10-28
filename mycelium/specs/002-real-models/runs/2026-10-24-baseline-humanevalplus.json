@@ -1,0 +1,33 @@
+{
+  "suite": "humanevalplus",
+  "model": "qwen3.5-2b",
+  "overall": {
+    "n": 50,
+    "accuracy": 0.54,
+    "accuracy_answerable": 0.54,
+    "ece": 0.44,
+    "brier": 0.43,
+    "auroc": 0.5434782608695652,
+    "hallucination_rate": 0.46,
+    "abstain_rate": 0.0,
+    "mean_loops": 1.0
+  },
+  "by_domain": {
+    "code": {
+      "n": 50,
+      "accuracy": 0.54,
+      "accuracy_answerable": 0.54,
+      "ece": 0.44,
+      "brier": 0.43,
+      "auroc": 0.5434782608695652,
+      "hallucination_rate": 0.46,
+      "abstain_rate": 0.0,
+      "mean_loops": 1.0
+    }
+  },
+  "default_confidence_share": 0.04,
+  "seconds": 464.8350981550002,
+  "tokens": 15735,
+  "tokens_per_second": 33.85071407571107,
+  "workers": 4
+}
