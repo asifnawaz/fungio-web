@@ -4,7 +4,9 @@
 
 **Setup.** Student: `HFStudent` (spec 002 T010) for `Qwen/Qwen3.5-2B`, first the base model, later the trained one. Problems: 1,000 GSM8K *train* questions (answers known; JUDGE = `judge_math`). Per question 4 attempts at temperature 0.7; keep questions with 1–3 correct (success rate 0.25–0.75, the "frontier" recipe); keep only verified traces; add 200 verified teacher traces as the anchor when the teacher is available. One LoRA SFT epoch per generation. Exam: 300 GSM8K *test* questions not in the committed sample + 100 MATH-500 problems + the golden set; never trained on.
 
-**Measures.** Paired exam accuracy gain per generation, 95% lower bound by bootstrap over exam problems; hallucination rate; ECE.
+**Amendment (2026-10-28, before any real run).** The student is now `LiquidAI/LFM3-1.7B` (owner's decision, `docs/decisions.md`). Everything else in this pre-registration stays as written.
+
+**Measures. Paired exam accuracy gain per generation, 95% lower bound by bootstrap over exam problems; hallucination rate; ECE.
 
 **Verdict after two generations.**
 - `pays`: generation 1's lower bound > 0, generation 2's lower bound > 0, hallucination not up by more than 0.01 in either. Recursion helps at least twice; continue with fully self-proposed problems (`tasks.md` T012).

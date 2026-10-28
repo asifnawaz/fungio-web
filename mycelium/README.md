@@ -37,7 +37,7 @@ python -m mycelium.cli insights --suite real   # does memory pay? sweep of hint 
 python -m mycelium.cli killtest --mock         # spec 003 harness check (~10 s)
 python -m mycelium.cli doctor                  # what this machine can run
 python scripts/fetch_datasets.py --evals --out data/full   # MATH-500, HumanEval+, MBPP+, SimpleQA (pip install -e ".[evals]")
-python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --workers 4   # P0: one real model alone
+python -m mycelium.cli baseline --url http://localhost:8081 --model lfm3-1.7b --workers 4   # P0: one real model alone
 ```
 
 ### With a real teacher
@@ -201,10 +201,10 @@ Which index to use: `numpy` up to ~100k records; `binary-ivf` beyond that. Its 8
 
 Every next task, in order, is in [`specs/ROADMAP.md`](specs/ROADMAP.md), with markers for what needs the GPU PC (`[GPU]`) and what needs the owner's decision (`[OWNER]`). On a fresh clone, run `python -m mycelium.cli doctor` to see which tasks this machine can run. In short:
 
-1. Small model first: the untrained student `Qwen3.5-2B-Q8_0.gguf` (2 GB) as the baseline (`python -m mycelium.cli baseline`) and the first kill-test reading.
+1. Small model first: the untrained student `LFM3-1.7B-Q8_0.gguf` (1.85 GB) as the baseline (`python -m mycelium.cli baseline`) and the first kill-test reading. (The first runs used `Qwen3.5-2B`; the owner switched the student to LFM3-1.7B on 2026-10-28.)
 2. Then the teacher on the 3090 (`Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf`, 11.8 GB) and a real-teacher run.
 3. Trustworthy evals: MATH-500, HumanEval+/MBPP+ and SimpleQA (loaders done), a code sandbox, a private holdout, a second JUDGE.
-4. Real student (`Qwen/Qwen3.5-2B`): SFT, logit distillation, GRPO with the RLCR reward.
+4. Real student (`LiquidAI/LFM3-1.7B`, weights under the LFM Open License v1.0): SFT, logit distillation (cross-tokenizer, since its tokenizer differs from the teacher's), GRPO with the RLCR reward.
 5. Decisive kill test with the trained student; hidden-state HIKMAT keys only if it says `pays`.
 6. GSQ + RCO student builds, then phones (spec 004) and the insight hub (spec 005).
 

@@ -39,6 +39,8 @@ description: "Tasks for the HIKMAT kill test on GSM-Symbolic"
 - [x] T009 [US1] Report contract and a test that the report matches it (`contracts/report.schema.json`, `tests/test_killtest.py`)
 - [ ] T010a [US1] **First reading** with the untrained student, right after its baseline (spec 002 T001b, same server on port 8081): `python -m mycelium.cli killtest --url http://localhost:8081 --model qwen3.5-2b --workers 4 --templates 50 --variants 10 --trials reports/killtest-base.jsonl --out reports/killtest-base.json`.
   Proof: report, command, model file and hardware under "Real runs" in `research.md`, labeled "base Qwen3.5-2B, untrained"; verdict in `docs/decisions.md`. Gate: `specs/ROADMAP.md` row 3.
+- [ ] T010a' [US1] **First reading on the new student** `LiquidAI/LFM3-1.7B` (decision 2026-10-28), right after its baseline (spec 002 T001c): the T010a command with `--model lfm3-1.7b`, `--trials reports/killtest-lfm3.jsonl --out reports/killtest-lfm3.json`. Same frozen verdict rule.
+  Proof: as T010a, labeled "base LFM3-1.7B, untrained". Gate: `specs/ROADMAP.md` row 3b.
 - [ ] T010b [US1] **Decisive run** with the trained student (after spec 002 T013), same command with its server and `--trials reports/killtest-trained.jsonl`. This is spec 002 T015a.
   Proof: as T010a, labeled with the student's `version`. Gate: `specs/ROADMAP.md` row 16.
 

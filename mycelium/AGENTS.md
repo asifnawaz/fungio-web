@@ -23,6 +23,7 @@ The project is free and open source, and will stay that way (intended license: A
 
 - **Done (spec 001):** full v0.1 pipeline on a mock student, with a mock, simulated-HTTP or real teacher, on synthetic problems, on real GSM8K + MMLU samples (`--suite real`) or on GSM-Symbolic + MMLU (`--suite symbolic`), in a basic or complex scenario (`--scenario complex`). Memory's benefit is measured by `python -m mycelium.cli insights` (an assumption sweep, not proof). See `specs/001-v0.1-pipeline/`.
 - **First real-model results (2026-10-24, cloud CPU, untrained Qwen3.5-2B):** baselines on the real, symbolic, MATH-500, HumanEval+, MBPP+ and SimpleQA sets (spec 002 `research.md`), and two HIKMAT kill-test runs (spec 003 `research.md`): full-solution hints 0.74 → 0.05, method-only hints 0.74 → 0.51, both `kill`. HIKMAT feature work waits for the owner's answer to roadmap Q4; don't build memory features before that.
+- **Student switched to `LiquidAI/LFM3-1.7B` (owner, 2026-10-28).** Weights under the LFM Open License v1.0 (not OSI; the condition carries over to our fine-tunes), tokenizer differs from the teacher's, llama.cpp needs master `8ca4060`+. Baseline side by side with Qwen3.5-2B in spec 002 `research.md`; consequences in `docs/decisions.md`. Next CPU-runnable step: roadmap row 3b (kill test on LFM3).
 - **Next (spec 002):** real models on the owner's GPU PC. See `specs/002-real-models/tasks.md` and pick the first unchecked task. Once a real student runs, T015a (= spec 003's real run) comes before any other HIKMAT work.
 - **RSI (spec 006):** recursive self-improvement loop done on the mock (`python -m mycelium.cli rsi`): verified self-traces at the frontier, train a copy, promote only on a clear exam gain, plateau and Goodhart stops, a recipe bandit. Real kill test pre-registered in `specs/006-rsi/research.md` (roadmap row 11a).
 - **Later (drafts, blocked):** spec 004 (phones and laptops), spec 005 (insight-sharing hub). Don't build them before their gates in `specs/ROADMAP.md`.
@@ -76,7 +77,7 @@ python -m mycelium.cli e2e --teacher-url http://localhost:8080 --teacher-model s
 python -m mycelium.cli bench --n 1000000            # HIKMAT index speeds
 python -m mycelium.cli insights --suite symbolic    # does memory pay, under which hint assumptions
 python -m mycelium.cli killtest --mock              # spec 003 harness check; real run: --url http://localhost:8081
-python -m mycelium.cli baseline --url http://localhost:8081 --model qwen3.5-2b --workers 4   # P0 on the PC: small model alone, first
+python -m mycelium.cli baseline --url http://localhost:8081 --model lfm3-1.7b --workers 4   # P0 on the PC: small model alone, first
 python -m mycelium.cli rsi                          # spec 006 RSI loop on the mock
 ```
 

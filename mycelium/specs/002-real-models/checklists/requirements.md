@@ -17,7 +17,7 @@
 - [x] Success criteria are measurable (SC-001–SC-004)
 - [x] Edge cases listed (format drift, VRAM, tokenizer mismatch, inconclusive kill test)
 - [x] Scope bounded; out-of-scope items named in Assumptions
-- [x] Student model chosen by name (`Qwen/Qwen3.5-2B`, see `specs/ROADMAP.md`)
+- [x] Student model chosen by name (`LiquidAI/LFM3-1.7B` since 2026-10-28, earlier `Qwen/Qwen3.5-2B`; see `specs/ROADMAP.md`)
 - [ ] Student/teacher token ids confirmed identical (T010's first check)
 
 ## Feature readiness

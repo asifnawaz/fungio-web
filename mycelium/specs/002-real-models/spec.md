@@ -134,5 +134,5 @@ Speculative decoding for the teacher, batched HIKMAT lookups, and the Strata exp
 ## Assumptions
 
 - The owner's PC has the stated hardware and can reach Hugging Face; this cloud container cannot.
-- The student is `Qwen/Qwen3.5-2B`: same architecture family and vocab size as the teacher (checked on Hugging Face, see `specs/ROADMAP.md`); identical token ids still to confirm in T010.
+- The student is `LiquidAI/LFM3-1.7B` (owner's decision 2026-10-28, replacing `Qwen/Qwen3.5-2B`). Its tokenizer differs from the teacher's, so token-level logit distillation needs a cross-tokenizer loss (T012); sequence-level distillation works as before.
 - Out of scope: phones, the insight-sharing hub, FOLD/CODON/H-Net research. DeepSeek V4.1 Flash on Strata appears only as the US6 testbed (T022).

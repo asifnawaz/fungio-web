@@ -4,14 +4,15 @@ The real student is a class in `mycelium/models/hf_student.py` that implements t
 
 ## Model
 
-- Default: `Qwen/Qwen3.5-2B` (Apache-2.0; facts in `specs/ROADMAP.md`). Text only: load the causal LM and ignore the vision encoder. If `transformers` can't load the text part alone, load the full model and pass text inputs only; write which one worked in `research.md`.
-- First check in T010 (before any training): tokenize 20 GSM8K questions with the student's and the teacher's (`Qwen/Qwen3.8-27B`) tokenizers; the ids must be identical. If not, T012 uses sequence-level distillation only. Record the result.
+- Default: `LiquidAI/LFM3-1.7B` (LFM Open License v1.0; facts in `specs/ROADMAP.md`, consequences in `docs/decisions.md`). Text-only causal LM. Its card loads it with `trust_remote_code=True`; prefer native `transformers` support if the installed version has `lfm3`, otherwise pin the revision. Write which one worked in `research.md`.
+- Chat template: reasoning is on by default. Build prompts with `enable_thinking=False` so replies match the llama.cpp `--reasoning off` baseline (T001c); the card warns this can be inconsistent, so T010 checks that replies still end with `ANSWER:` / `CONFIDENCE:` lines.
+- Tokenizer differs from the teacher's (128,000 vs 248,320 tokens): T012 needs a cross-tokenizer loss or stays sequence-level.
 
 ## Constructor
 
 ```python
 HFStudent(
-    model_id: str = "Qwen/Qwen3.5-2B",
+    model_id: str = "LiquidAI/LFM3-1.7B",
     *,
     device: str = "cuda",
     dtype: str = "bfloat16",
@@ -35,7 +36,7 @@ HFStudent(
 ## `learn_sft(records: list[tuple[Problem, str]]) -> None`
 
 - `records` are verified teacher replies (they already end with `ANSWER:` and `CONFIDENCE:` lines). Train a LoRA adapter with TRL's `SFTTrainer` on chat-formatted pairs; loss on the assistant turn only.
-- Kernel library: Unsloth **or** Liger Kernel, chosen in T011 after checking which one supports `qwen3_5`; if neither does, plain TRL + PEFT with gradient checkpointing. Record the choice in `docs/decisions.md`.
+- Kernel library: Unsloth **or** Liger Kernel, chosen in T011 after checking which one supports `lfm3`; if neither does, plain TRL + PEFT with gradient checkpointing. Record the choice in `docs/decisions.md`.
 - Stop the teacher server while training (24 GB). Save the adapter under `checkpoints/`, then reload it for inference.
 
 ## `learn_rlcr(samples: list[RLCRSample]) -> None`
@@ -46,5 +47,5 @@ HFStudent(
 ## Tests (CPU, `tests/test_hf_student.py`)
 
 - Skip the module when `torch` or `transformers` is missing (`pytest.importorskip`), so CI without them stays green.
-- Build a tiny random model from a small Qwen3.5 text config (2 layers, hidden 64) and a toy tokenizer, with no download. Check: `answer` returns an `Answer` with a normalized `latent` of the hidden size, `tokens` ≤ `max_loops * tokens_per_loop`, and a hint changes the prompt.
+- Build a tiny random model from a small LFM3 config (2 layers: one `conv`, one `full_attention`; hidden 64) and a toy tokenizer, with no download. If `lfm3` needs remote code, use any tiny causal LM config available offline and say so in the test. Check: `answer` returns an `Answer` with a normalized `latent` of the hidden size, `tokens` ≤ `max_loops * tokens_per_loop`, and a hint changes the prompt.
 - One SFT step on 4 toy records lowers the training loss and changes `version`.

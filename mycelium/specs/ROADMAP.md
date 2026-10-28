@@ -30,6 +30,8 @@ On a machine without a GPU, take the first open `[CPU]` row instead; `[CPU]` row
 | 1 | T001 Environment on the PC (Python, CUDA, llama.cpp, `pip install -e ".[dev,faiss]"`) | 002 | `[GPU]` | — | open |
 | 2 | T001b **Small-model baseline first**: serve the untrained student `Qwen3.5-2B-Q8_0.gguf` from `unsloth/Qwen3.5-2B-MTP-GGUF` (2.08 GB; `--reasoning off --spec-type draft-mtp -np 4`) and run `python -m mycelium.cli baseline` on the real and symbolic suites | 002 | `[GPU]` | 1 | done on the cloud CPU 2026-10-24 (numbers in spec 002 `research.md`); rerun on the PC only to record GPU speed |
 | 3 | T010a Kill test, first reading, on the same student server | 003 | `[GPU]` `[GATE]` | 2 | done (cloud CPU): `kill` twice (full solution: 0.74 → 0.05; method only: 0.74 → 0.51); Q4 asked |
+| 2b | T001c **Baseline of the new student** `LiquidAI/LFM3-1.7B` (decision 2026-10-28): `LFM3-1.7B-Q8_0.gguf` from `LiquidAI/LFM3-1.7B-GGUF` (1.85 GB), llama.cpp master `8ca4060` or newer, `--reasoning off --jinja -np 4`; same six suites, same seeds and limits as row 2 | 002 | `[GPU]` | 1 | running on the cloud CPU since 2026-10-28; results go to spec 002 `research.md` |
+| 3b | T010a' Kill test, first reading, repeated on LFM3-1.7B (same command as row 3, `--model lfm3-1.7b`) | 003 | `[GPU]` `[GATE]` | 2b | open; runs on CPU too (~30 min on the cloud Xeon). Same frozen verdict rule |
 | 4 | T002 Download the teacher GGUF (11.8 GB) | 002 | `[GPU]` | 1 | open |
 | 5 | T003 Serve the teacher; record VRAM and tokens/s | 002 | `[GPU]` | 4 | open |
 | 6 | T004 Real-teacher e2e run | 002 | `[GPU]` | 5 | open |
@@ -37,7 +39,7 @@ On a machine without a GPU, take the first open `[CPU]` row instead; `[CPU]` row
 | 8 | T008 Private holdout behind `--final` | 002 | `[CPU]` | — | open |
 | 9 | T009 Second, independent JUDGE for math and QA | 002 | `[CPU]` | — | open |
 | 10 | T007 Container sandbox for the code JUDGE (needs Docker) | 002 | `[CPU]` | — | open |
-| 11 | T010 `HFStudent` backend for `Qwen/Qwen3.5-2B` (contract: `specs/002-real-models/contracts/student-backend.md`) | 002 | `[CPU]` (tiny-model test) then `[GPU]` | — | open |
+| 11 | T010 `HFStudent` backend for `LiquidAI/LFM3-1.7B` (contract: `specs/002-real-models/contracts/student-backend.md`) | 002 | `[CPU]` (tiny-model test) then `[GPU]` | — | open |
 | 11a | T009–T011 **RSI kill test**, two STaR-style generations on the base student | 006 | `[GPU]` `[GATE]` | 11 | open |
 | 12 | T011 SFT on verified teacher traces | 002 | `[GPU]` | 6, 11 | open |
 | 13 | T012 Top-k logit distillation | 002 | `[GPU]` | 12 | open |
@@ -69,6 +71,7 @@ Why the small model comes first: it is the baseline every later number is compar
 ## Gates
 
 - **Row 3 (first reading).** `pays` or `inconclusive`: continue the queue as is. `kill`: continue rows 4–15 (the student is needed anyway), but before row 16 ask the owner whether HIKMAT stays in scope (Q4).
+- **Row 3b (first reading on LFM3).** Same rule. Record it next to Q4; a different verdict than row 3 is new evidence for the owner's answer, not a reason to build memory features before it.
 - **Row 11a (RSI, base student).** `pays`: continue, and add spec 006 T012 (self-proposed problems) after row 16a. `plateau`: continue; try the other recipes in row 16a. `kill`: skip row 16a, record it, ask Q5.
 - **Row 16 (trained student).** `pays`: rows 17–21. `inconclusive`: rerun with `--templates 100` before anything else. `kill`: mark rows 18–21 `dropped`, record it in `docs/decisions.md`, ask Q4.
 
@@ -83,7 +86,7 @@ Why the small model comes first: it is the baseline every later number is compar
 ## Already decided (don't re-decide without new evidence; see `docs/decisions.md`)
 
 - Teacher: `ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF`, file `Qwen3.8-27B-GSQ-RCO-IQ3_S.gguf`.
-- Student: `Qwen/Qwen3.5-2B` (reasons and checks below). Fallbacks: `Qwen/Qwen3.5-4B` if 2B is too weak, `Qwen/Qwen3.5-0.8B` for phones.
+- Student: `LiquidAI/LFM3-1.7B` (owner's decision 2026-10-28; facts below, consequences in `docs/decisions.md`). Fallbacks: `LiquidAI/LFM3-1.7B-Base` if the post-trained model fights our format; `Qwen/Qwen3.5-2B` (measured baseline, Apache-2.0).
 - Training: TRL with either Unsloth or Liger Kernel, never both.
 - HIKMAT index: `numpy` up to ~100k records, `binary-ivf` beyond.
 - GSM-Symbolic is evaluation-only; never train on it.
@@ -95,6 +98,10 @@ Why the small model comes first: it is the baseline every later number is compar
 |---|---|
 | `Qwen/Qwen3.5-2B` | Apache-2.0. 2B parameters, 24 layers laid out as 6 × (3 Gated DeltaNet + 1 Gated Attention), hidden size 2048, vocab 248,320 (tied embeddings), 262k context. Architecture `Qwen3_5ForConditionalGeneration` (has a vision encoder; we use text only). `config.json` names transformers 4.57.0.dev0. bf16 weights 4.55 GB. |
 | Tokenizer match with the teacher | `Qwen/Qwen3.8-27B` has the same architecture family (`qwen3_5`), the same vocab size (248,320) and `vocab.json` / `merges.txt` of identical byte sizes (6,722,759 / 3,353,259). Likely identical; T010 must confirm by comparing token ids on sample text. |
+| `LiquidAI/LFM3-1.7B` (checked 2026-10-28) | LFM Open License v1.0 (commercial use not licensed for organizations with ≥ $10M annual revenue; derivatives keep the condition). 1.73B parameters, 24 layers: 13 gated short convolutions, 5 sliding-window attention (window 256), 6 global attention; hidden 2048, vocab 128,000 (tied embeddings), 262,144 context. `Lfm3ForCausalLM`, `trust_remote_code=True` on its card; `config.json` names transformers 5.12.1. Reasoning on by default (`<think>`); `enable_thinking=False` / llama.cpp `--reasoning off` turns it off, and the card warns this can be inconsistent on reasoning-heavy tasks. Card sampling: general `temperature=0.1, top_k=50, repetition_penalty=1.1`; math `temperature=1.0, top_p=0.95, top_k=20`. Card fine-tuning notebooks: SFT, DPO, GRPO, CPT via TRL. |
+| `LiquidAI/LFM3-1.7B-Base` | Same architecture and license; pre-trained on 22T tokens (last 3.5T mid-training with agentic traces, chat data with and without thinking). For heavy fine-tuning. |
+| `LiquidAI/LFM3-1.7B-GGUF` | `LFM3-1.7B-Q8_0.gguf` 1.85 GB, `Q6_K` 1.43 GB, `Q5_K_M` 1.26 GB, `Q4_K_M` 1.10 GB, `LFM3-1.7B-QAD-Q4_0.gguf` 1.05 GB (quantization-aware distilled), `BF16` 3.47 GB. Needs llama.cpp with `lfm3` support (upstream master `8ca4060` has `src/models/lfm3.cpp`). |
+| Tokenizer vs the teacher | Different: 128,000 vs 248,320 tokens. Token-level logit distillation needs a cross-tokenizer loss (spec 002 T012). |
 | `unsloth/Qwen3.5-2B-GGUF` | `Qwen3.5-2B-Q8_0.gguf` 2.01 GB, `Qwen3.5-2B-Q4_K_M.gguf` 1.28 GB, `Qwen3.5-2B-BF16.gguf` 3.78 GB. |
 | `unsloth/Qwen3.5-2B-MTP-GGUF` | Same quants with the MTP head kept (`Qwen3.5-2B-Q8_0.gguf` 2.08 GB). With llama.cpp `--spec-type draft-mtp`, measured fastest on CPU (see spec 002 `research.md`). Use this one. |
 | `HuggingFaceH4/MATH-500` | `test.jsonl`, 500 problems from OpenAI's PRM800K split. The card has no license field; check `github.com/openai/prm800k` before committing any rows. |
@@ -103,4 +110,4 @@ Why the small model comes first: it is the baseline every later number is compar
 | `truthfulqa/truthful_qa` | Apache-2.0. |
 | `rajpurkar/squad_v2` | CC-BY-SA-4.0 (has unanswerable questions, but share-alike): local evaluation only, never commit rows. |
 
-Not checked yet (verify before relying on it): whether Unsloth and Liger support the `qwen3_5` architecture (Gated DeltaNet layers); the GitHub repos for GSQ and RCO; llama.cpp flags for `-mtp` speculative decoding.
+Not checked yet (verify before relying on it): whether Unsloth and Liger support the `lfm3` architecture; whether TRL's cross-tokenizer distillation (GOLD / ULD) works for LFM3 student + Qwen3.8 teacher; whether `transformers` loads `lfm3` natively or only with `trust_remote_code`; the GitHub repos for GSQ and RCO; llama.cpp flags for `-mtp` speculative decoding.
