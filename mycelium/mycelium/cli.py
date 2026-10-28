@@ -93,6 +93,7 @@ def main() -> None:
     kt.add_argument("--seed", type=int, default=0)
     kt.add_argument("--trials", help="append trials here as JSON lines; a rerun resumes from it")
     kt.add_argument("--workers", type=int, default=1, help="requests in flight at once (match llama-server -np)")
+    kt.add_argument("--timeout", type=float, default=300.0, help="seconds to wait for one reply")
     kt.add_argument("--payload", choices=["solution", "method"], default="solution",
                     help="solution: donor's worked solution; method: its steps with numbers masked, no answer")
     kt.add_argument("--out", help="write the analysis as JSON here")
@@ -107,6 +108,8 @@ def main() -> None:
     base.add_argument("--max-tokens", type=int, default=2048)
     base.add_argument("--seed", type=int, default=0)
     base.add_argument("--workers", type=int, default=1, help="requests in flight at once (match llama-server -np)")
+    base.add_argument("--timeout", type=float, default=300.0,
+                      help="seconds to wait for one reply; raise it on a CPU, where a 2048-token reply can take longer")
     base.add_argument("--out", help="write the report as JSON here")
     cmp_ = sub.add_parser("compare", help="side-by-side table of saved baseline reports (e.g. two students)")
     cmp_.add_argument("reports", nargs="+", help="JSON files written by `baseline --out`")
@@ -127,7 +130,8 @@ def main() -> None:
         api_key = os.environ.get(args.api_key_env) if args.api_key_env else None
         if args.api_key_env and not api_key:
             parser.error(f"environment variable {args.api_key_env} is not set")
-        backend = OpenAICompatBackend(args.url, args.model, tokens_per_loop=args.max_tokens, api_key=api_key)
+        backend = OpenAICompatBackend(args.url, args.model, tokens_per_loop=args.max_tokens, api_key=api_key,
+                                      timeout_s=args.timeout)
         if args.suite in ("real", "symbolic"):
             report = baseline.run_baseline(backend, E2EConfig(seed=args.seed, suite=args.suite), workers=args.workers)
         else:
@@ -217,7 +221,8 @@ def _killtest(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None
         api_key = os.environ.get(args.api_key_env) if args.api_key_env else None
         if args.api_key_env and not api_key:
             parser.error(f"environment variable {args.api_key_env} is not set")
-        backend = OpenAICompatBackend(args.url, args.model, tokens_per_loop=args.max_tokens, api_key=api_key)
+        backend = OpenAICompatBackend(args.url, args.model, tokens_per_loop=args.max_tokens, api_key=api_key,
+                                      timeout_s=args.timeout)
         payload = killtest.method_payload if args.payload == "method" else killtest.solution_payload
         unit = "tokens"
     total = args.templates * args.variants * len(killtest.CONDITIONS)
