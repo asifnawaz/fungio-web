@@ -71,3 +71,30 @@ def format_baseline(report: dict) -> str:
     lines.append(f"time {report['seconds']:.0f} s, {speed}; confidence exactly 0.5 (format failure?) "
                  f"{report['default_confidence_share']:.1%}")
     return "\n".join(lines)
+
+
+def compare_reports(reports: list[dict]) -> str:
+    """Side-by-side Markdown table of baseline reports, one row per suite, one column group per model.
+
+    Two models are only comparable on the same questions, so a suite whose reports have
+    different question counts (other `--limit` or `--seed`) is flagged instead of silently compared.
+    """
+    models = list(dict.fromkeys(r["model"] for r in reports))
+    by_key = {(r["suite"], r["model"]): r for r in reports}
+    header = "| suite | n | " + " | ".join(f"{m} acc / ECE / halluc / tok/s" for m in models) + " |"
+    lines = [header, "|" + "---|" * (2 + len(models))]
+    for suite in dict.fromkeys(r["suite"] for r in reports):
+        counts = {by_key[(suite, m)]["overall"]["n"] for m in models if (suite, m) in by_key}
+        n = str(counts.pop()) if len(counts) == 1 else "differs: " + "/".join(
+            str(by_key[(suite, m)]["overall"]["n"]) if (suite, m) in by_key else "-" for m in models)
+        cells = []
+        for m in models:
+            r = by_key.get((suite, m))
+            if r is None:
+                cells.append("not run")
+                continue
+            o, tps = r["overall"], r["tokens_per_second"]
+            speed = "n/a" if tps is None else f"{tps:.1f}"
+            cells.append(f"{o['accuracy']:.3f} / {o['ece']:.3f} / {o['hallucination_rate']:.3f} / {speed}")
+        lines.append(f"| {suite} | {n} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)

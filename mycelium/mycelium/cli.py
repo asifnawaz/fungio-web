@@ -108,6 +108,8 @@ def main() -> None:
     base.add_argument("--seed", type=int, default=0)
     base.add_argument("--workers", type=int, default=1, help="requests in flight at once (match llama-server -np)")
     base.add_argument("--out", help="write the report as JSON here")
+    cmp_ = sub.add_parser("compare", help="side-by-side table of saved baseline reports (e.g. two students)")
+    cmp_.add_argument("reports", nargs="+", help="JSON files written by `baseline --out`")
     rs = sub.add_parser("rsi", help="recursive self-improvement loop on the mock student (spec 006)")
     rs.add_argument("--generations", type=int, default=8)
     rs.add_argument("--verify", choices=["judge", "off", "inverted"], default="judge",
@@ -138,6 +140,9 @@ def main() -> None:
         print(baseline.format_baseline(report))
         if args.out:
             _write_json(args.out, report)
+        return
+    if args.command == "compare":
+        print(baseline.compare_reports([json.loads(Path(p).read_text()) for p in args.reports]))
         return
     if args.command == "rsi":
         report = rsi.run_rsi(rsi.RSIConfig(generations=args.generations, verify=args.verify, seed=args.seed))

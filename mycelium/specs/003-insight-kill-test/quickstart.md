@@ -19,7 +19,7 @@ python -m mycelium.cli killtest --url http://localhost:8081 --model student --wo
     --templates 50 --variants 10 --trials killtest-trials.jsonl --out killtest-report.json
 ```
 
-- First reading (T010a): the untrained `Qwen3.5-2B-Q8_0.gguf` (done, runs 1–2). Since 2026-10-28 the student is `LiquidAI/LFM3-1.7B`: repeat the first reading on `LFM3-1.7B-Q8_0.gguf` from `LiquidAI/LFM3-1.7B-GGUF` (T010a', add `--jinja`, needs llama.cpp `8ca4060` or newer). Decisive run (T010b): the trained spec 002 student.
+- First reading (T010a): the untrained `Qwen3.5-2B-Q8_0.gguf` (done, runs 1–2). Since 2026-10-28 the student is `LiquidAI/LFM3-1.7B`: repeat the first reading on `LFM3-1.7B-Q8_0.gguf` from `LiquidAI/LFM3-1.7B-GGUF` (T010a', add `--jinja`, needs llama.cpp with PR #31252 / commit `19cce69` or newer). Decisive run (T010b): the trained spec 002 student.
 - Before the full run, send one request with `curl` and read the raw reply. If it has no `ANSWER:` line (cut off, or long thinking text), raise `--max-tokens` or switch the model to non-thinking mode as its model card describes; don't guess the switch.
 - Pick a model whose accuracy without hints is roughly 30–90% on these problems, so there is room to move in both directions.
 - If the run stops, run the same command again; `--trials` resumes it.
